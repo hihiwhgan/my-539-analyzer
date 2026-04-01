@@ -2,22 +2,21 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>今彩 539 數據分析實驗室</title>
+    <title>今彩 539 智慧差值預測面板</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
         .container { max-width: 1350px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; overflow-x: auto; }
         h1 { text-align: center; color: #6d6d6d; margin-bottom: 5px; }
-        h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.2em; margin-top: 20px; }
+        h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.1em; margin-top: 30px; }
         .subtitle { text-align: center; margin-bottom: 25px; font-size: 0.85em; display: flex; justify-content: center; gap: 15px; }
         
-        /* 莫蘭迪配色 */
         .legend-item { padding: 3px 10px; border-radius: 4px; color: white; font-weight: bold; }
-        .bg-blue   { background-color: #8E9AAF; color: white !important; } /* 連莊期 */
-        .bg-yellow { background-color: #D4A373; color: white !important; } /* 隔 1 期 */
-        .bg-green  { background-color: #A3B18A; color: white !important; } /* 隔 2 期 */
-        .bg-purple { background-color: #957DAD; color: white !important; } /* 隔 3 期 */
+        .bg-blue   { background-color: #8E9AAF; color: white !important; }
+        .bg-yellow { background-color: #D4A373; color: white !important; }
+        .bg-green  { background-color: #A3B18A; color: white !important; }
+        .bg-purple { background-color: #957DAD; color: white !important; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.82em; table-layout: fixed; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82em; table-layout: fixed; margin-bottom: 0; }
         th { background: #eaeaea; color: #666; padding: 10px 5px; border: 1px solid #ddd; }
         td { padding: 6px 2px; border: 1px solid #efefef; text-align: center; }
         
@@ -28,8 +27,16 @@
 
         .diff-num {
             display: inline-block; width: 22px; height: 22px; line-height: 22px;
-            border-radius: 4px; margin: 1px; font-family: "Courier New", monospace; font-weight: bold;
-            color: #444;
+            border-radius: 4px; margin: 1px; font-family: "Courier New", monospace; font-weight: bold; color: #444;
+        }
+
+        /* 預測列樣式 */
+        .predict-row { background-color: #444 !important; color: #fff; font-weight: bold; }
+        .predict-row td { border: 1px solid #555; padding: 10px 2px; }
+        .predict-tag { color: #ffd700; font-size: 0.9em; display: block; margin-bottom: 5px; }
+        .predict-ball {
+            display: inline-block; width: 24px; height: 24px; line-height: 24px;
+            background: #fff; color: #444; border-radius: 4px; margin: 2px; font-size: 0.9em;
         }
 
         .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
@@ -39,7 +46,7 @@
 <body>
 
     <div class="container">
-        <h1>今彩 539 莫蘭迪差值分析表</h1>
+        <h1>今彩 539 Morgan Hwang 數據分析預測實驗室</h1>
         <div class="subtitle">
             <span class="legend-item bg-blue">藍：連莊</span>
             <span class="legend-item bg-yellow">黃：隔 1 期</span>
@@ -47,28 +54,28 @@
             <span class="legend-item bg-purple">紫：隔 3 期</span>
         </div>
 
-        <h2>表格一：基礎差值分析 (|本期各號 - 上期第 n 號|)</h2>
+        <h2>表格一：基礎差值分析與預測 (目標：下一期號碼)</h2>
         <table id="table1">
             <thead>
                 <tr>
-                    <th style="width: 70px;">日期</th>
-                    <th style="width: 150px;">開獎號碼</th>
+                    <th style="width: 70px;">日期</th><th style="width: 150px;">開獎號碼</th>
                     <th>減前 1</th><th>減前 2</th><th>減前 3</th><th>減前 4</th><th>減前 5</th>
                 </tr>
             </thead>
             <tbody id="tbody1"></tbody>
+            <tfoot id="tfoot1"></tfoot>
         </table>
 
-        <h2>表格二：累加尾數差值分析 (|本期各號 - 上期累計尾數|)</h2>
+        <h2>表格二：累加尾數差值分析與預測 (目標：下一期號碼)</h2>
         <table id="table2">
             <thead>
                 <tr>
-                    <th style="width: 70px;">日期</th>
-                    <th style="width: 150px;">開獎號碼</th>
+                    <th style="width: 70px;">日期</th><th style="width: 150px;">開獎號碼</th>
                     <th>減(尾1)</th><th>減(尾1+2)</th><th>減(尾1~3)</th><th>減(尾1~4)</th><th>減(尾1~5)</th>
                 </tr>
             </thead>
             <tbody id="tbody2"></tbody>
+            <tfoot id="tfoot2"></tfoot>
         </table>
     </div>
 
@@ -78,79 +85,104 @@
                 const response = await fetch('/api/data');
                 const data = await response.json();
 
-                // 準備兩個矩陣來存差值
-                let matrix1 = []; // 基礎差值
-                let matrix2 = []; // 累加尾數差值
-
+                let matrix1 = [], matrix2 = [];
                 for (let i = 0; i < data.length; i++) {
-                    let diffs1 = [], diffs2 = [];
+                    let d1 = [], d2 = [];
                     if (i > 0) {
-                        const prev = data[i - 1].nums.map(Number);
+                        const prev = data[i-1].nums.map(Number);
                         const curr = data[i].nums.map(Number);
-                        
-                        // 提取上期尾數
                         const tails = prev.map(n => n % 10);
-
                         for (let c = 0; c < 5; c++) {
-                            // 表格一邏輯
-                            diffs1.push(curr.map(n => Math.abs(n - prev[c])));
-                            
-                            // 表格二邏輯：累加尾數
-                            // 例如 c=2 時，減去 (tails[0] + tails[1] + tails[2])
-                            let cumulativeTailSum = 0;
-                            for(let k = 0; k <= c; k++) cumulativeTailSum += tails[k];
-                            diffs2.push(curr.map(n => Math.abs(n - cumulativeTailSum)));
+                            d1.push(curr.map(n => Math.abs(n - prev[c])));
+                            let sumT = 0; for(let k=0; k<=c; k++) sumT += tails[k];
+                            d2.push(curr.map(n => Math.abs(n - sumT)));
                         }
-                    } else {
-                        for (let c = 0; c < 5; c++) { diffs1.push(null); diffs2.push(null); }
-                    }
-                    matrix1.push(diffs1);
-                    matrix2.push(diffs2);
+                    } else { for(let c=0; c<5; c++){ d1.push(null); d2.push(null); } }
+                    matrix1.push(d1); matrix2.push(d2);
                 }
 
-                renderTable('tbody1', data, matrix1);
-                renderTable('tbody2', data, matrix2);
+                renderTable('tbody', 'tfoot', data, matrix1, 1);
+                renderTable('tbody', 'tfoot', data, matrix2, 2);
 
             } catch (err) { console.error(err); }
         }
 
-        function renderTable(targetId, data, matrix) {
-            const tbody = document.getElementById(targetId);
+        function renderTable(bodyPrefix, footPrefix, data, matrix, type) {
+            const tbody = document.getElementById(bodyPrefix + type);
+            const tfoot = document.getElementById(footPrefix + type);
+            tbody.innerHTML = ''; tfoot.innerHTML = '';
+
+            // 渲染主體內容
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
                 const ballsHtml = item.nums.map(n => `<span class="ball">${n}</span>`).join('');
                 let rowHtml = `<td><strong>${item.period}</strong></td><td>${ballsHtml}</td>`;
 
                 for (let c = 0; c < 5; c++) {
-                    if (i === 0 || !matrix[i][c]) {
-                        rowHtml += `<td class="diff-col">-</td>`;
-                        continue;
-                    }
-
-                    const currentNums = matrix[i][c];
-                    let cellHtml = currentNums.map(val => {
-                        let colorClass = '';
-                        // 雙向染色檢查
+                    if (i === 0 || !matrix[i][c]) { rowHtml += `<td class="diff-col">-</td>`; continue; }
+                    let cellHtml = matrix[i][c].map(val => {
+                        let cls = '';
                         for (let j = 0; j <= 3; j++) {
-                            const targetGaps = [i - (j + 1), i + (j + 1)];
-                            let found = false;
-                            for (let tIdx of targetGaps) {
-                                if (tIdx >= 0 && tIdx < data.length && matrix[tIdx][c]) {
-                                    if (matrix[tIdx][c].includes(val)) { found = true; break; }
-                                }
-                            }
-                            if (found) {
-                                colorClass = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j];
-                                break;
+                            const targets = [i-(j+1), i+(j+1)];
+                            if (targets.some(t => t>=0 && t<data.length && matrix[t][c] && matrix[t][c].includes(val))) {
+                                cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break;
                             }
                         }
-                        return `<span class="diff-num ${colorClass}">${val.toString().padStart(2, '0')}</span>`;
+                        return `<span class="diff-num ${cls}">${val.toString().padStart(2, '0')}</span>`;
                     }).join('');
                     rowHtml += `<td class="diff-col">${cellHtml}</td>`;
                 }
-                row.innerHTML = rowHtml;
-                tbody.appendChild(row);
+                row.innerHTML = rowHtml; tbody.appendChild(row);
             });
+
+            // --- 預測邏輯 ---
+            const lastIdx = data.length - 1;
+            const lastNums = data[lastIdx].nums.map(Number);
+            const lastTails = lastNums.map(n => n % 10);
+            const predictRow = document.createElement('tr');
+            predictRow.className = 'predict-row';
+            
+            let predictHtml = `<td colspan="2"><span class="predict-tag">✨ 下一期預測</span>(根據近期熱門路徑)</td>`;
+
+            for (let c = 0; c < 5; c++) {
+                // 統計此欄位最常出現的「顯色差值」
+                let counts = {};
+                for (let i = 1; i < data.length; i++) {
+                    matrix[i][c].forEach(v => {
+                        // 只統計有重複出現過的差值
+                        if (matrix.some((m, idx) => idx !== i && m[c] && m[c].includes(v) && Math.abs(idx - i) <= 4)) {
+                            counts[v] = (counts[v] || 0) + 1;
+                        }
+                    });
+                }
+
+                // 取得前 3 名熱門差值
+                let hotDiffs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 3).map(Number);
+                
+                // 計算對應號碼
+                let base = 0;
+                if (type === 1) {
+                    base = lastNums[c]; // 表一：減去上期第 c 號
+                } else {
+                    for(let k=0; k<=c; k++) base += lastTails[k]; // 表二：減去累加尾數
+                }
+
+                let predictedBalls = [];
+                hotDiffs.forEach(d => {
+                    let n1 = base + d;
+                    let n2 = Math.abs(base - d);
+                    if (n1 >= 1 && n1 <= 39) predictedBalls.push(n1);
+                    if (n2 >= 1 && n2 <= 39 && n1 !== n2) predictedBalls.push(n2);
+                });
+
+                // 去重並排序
+                predictedBalls = [...new Set(predictedBalls)].sort((a, b) => a - b).slice(0, 4);
+
+                let ballsHtml = predictedBalls.map(b => `<span class="predict-ball">${b.toString().padStart(2, '0')}</span>`).join('');
+                predictHtml += `<td class="diff-col"><span class="predict-tag">建議號碼:</span>${ballsHtml || '待觀察'}</td>`;
+            }
+            predictRow.innerHTML = predictHtml;
+            tfoot.appendChild(predictRow);
         }
 
         loadData();
