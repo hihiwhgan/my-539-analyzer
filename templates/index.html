@@ -2,166 +2,167 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>今彩 539 智慧分析終端</title>
+    <title>539 智慧分析 - 25期回測版</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
-        .container { max-width: 1350px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        h1 { text-align: center; color: #6d6d6d; margin-bottom: 5px; }
-        h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.1em; margin-top: 30px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #6d6d6d; }
         
-        /* 莫蘭迪配色與表格樣式保持一致 */
-        .legend-item { padding: 3px 10px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.8em; }
+        /* 莫蘭迪配色 */
         .bg-blue   { background-color: #8E9AAF; color: white !important; }
         .bg-yellow { background-color: #D4A373; color: white !important; }
         .bg-green  { background-color: #A3B18A; color: white !important; }
         .bg-purple { background-color: #957DAD; color: white !important; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.82em; table-layout: fixed; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
         th { background: #eaeaea; color: #666; padding: 10px; border: 1px solid #ddd; }
-        td { padding: 8px 2px; border: 1px solid #efefef; text-align: center; }
-        .ball { display: inline-block; width: 22px; height: 22px; line-height: 22px; background: #b8978e; color: white; border-radius: 50%; margin: 0 1px; font-weight: bold; font-size: 0.8em; }
-        .diff-num { display: inline-block; width: 22px; height: 22px; border-radius: 4px; font-family: monospace; font-weight: bold; }
-        .predict-row { background-color: #444 !important; color: #fff; }
+        td { padding: 6px 2px; border: 1px solid #efefef; text-align: center; }
         
-        /* 總結報告區塊 */
-        .summary-box { background: #333; color: #eee; padding: 25px; border-radius: 12px; margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-        .summary-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-top: 3px solid #8E9AAF; }
-        .summary-title { font-weight: bold; color: #ffd700; margin-bottom: 15px; display: block; border-bottom: 1px solid #555; padding-bottom: 5px; }
-        .hot-num { display: inline-block; background: #fff; color: #333; padding: 4px 10px; border-radius: 4px; margin: 4px; font-weight: bold; }
-        .count-tag { font-size: 0.7em; color: #888; margin-left: 3px; }
+        .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
+        .diff-num { display: inline-block; width: 20px; height: 20px; border-radius: 4px; font-family: monospace; font-weight: bold; }
+        
+        /* 預測與回測樣式 */
+        .predict-row { background-color: #444 !important; color: #fff; border-top: 2px solid #ffd700; }
+        .history-predict { background-color: #555 !important; color: #ccc; font-size: 0.9em; }
+        .hit-badge { color: #ffd700; font-weight: bold; margin-left: 5px; }
+        .hit-rate { background: #d32f2f; color: white; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
+        .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>今彩 539 智慧差值預測終端</h1>
+        <h1>今彩 539 智慧預測 (25期樣本 / 20期視窗)</h1>
         
-        <h2>表格一：基礎差值分析</h2>
-        <table id="table1"><thead><tr><th style="width:70px">日期</th><th style="width:150px">開獎號碼</th><th>減前1</th><th>減前2</th><th>減前3</th><th>減前4</th><th>減前5</th></tr></thead><tbody id="tbody1"></tbody><tfoot id="tfoot1"></tfoot></table>
-        
-        <h2>表格二：累加尾數差值分析</h2>
-        <table id="table2"><thead><tr><th style="width:70px">日期</th><th style="width:150px">開獎號碼</th><th>減(尾1)</th><th>減(尾1+2)</th><th>減(尾1~3)</th><th>減(尾1~4)</th><th>減(尾1~5)</th></tr></thead><tbody id="tbody2"></tbody><tfoot id="tfoot2"></tfoot></table>
-
-        <div class="summary-box" id="summaryArea">
-            <div class="summary-card" id="algorithmCard">
-                <span class="summary-title">🤖 演算法推薦 (熱門路徑預測)</span>
-                <div id="algoContent">計算中...</div>
-            </div>
-            <div class="summary-card" id="historyCard">
-                <span class="summary-title">🔥 歷史熱門 (近20期實際開出)</span>
-                <div id="historyContent">計算中...</div>
-            </div>
-            <div class="summary-card" id="coldCard">
-                <span class="summary-title">❄️ 遺漏冷門 (近20期未出現)</span>
-                <div id="coldContent">計算中...</div>
-            </div>
-        </div>
+        <h2>表格分析 (顯示最近 25 期)</h2>
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">日期</th>
+                    <th style="width: 140px;">開獎號碼</th>
+                    <th>減前 1</th><th>減前 2</th><th>減前 3</th><th>減前 4</th><th>減前 5</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+            <tfoot id="tfoot"></tfoot>
+        </table>
     </div>
 
     <script>
-        let allPredictions = []; // 用於收集所有預測號碼
-
         async function loadData() {
             const response = await fetch('/api/data');
-            const data = await response.json();
+            const data = await response.json(); // 預期收到 25 筆
             
-            // 計算歷史統計
-            const historyCounts = {};
-            data.forEach(d => d.nums.forEach(n => historyCounts[n] = (historyCounts[n] || 0) + 1));
-
-            // 處理表格
-            processTable(data, 1);
-            processTable(data, 2);
-
-            // 渲染總結報告
-            renderSummary(historyCounts);
-        }
-
-        function processTable(data, type) {
+            // 1. 計算所有差值矩陣 (Matrix)
             const matrix = [];
             for (let i = 0; i < data.length; i++) {
                 let d = [];
                 if (i > 0) {
                     const prev = data[i-1].nums.map(Number);
                     const curr = data[i].nums.map(Number);
-                    const tails = prev.map(n => n % 10);
                     for (let c = 0; c < 5; c++) {
-                        if (type === 1) d.push(curr.map(n => Math.abs(n - prev[c])));
-                        else { let s=0; for(let k=0;k<=c;k++) s+=tails[k]; d.push(curr.map(n => Math.abs(n-s))); }
+                        d.push(curr.map(n => Math.abs(n - prev[c])));
                     }
-                } else { for(let c=0;c<5;c++) d.push(null); }
+                } else { for(let c=0; c<5; c++) d.push(null); }
                 matrix.push(d);
             }
-            renderTableBody(data, matrix, type);
-            renderTableFoot(data, matrix, type);
+
+            // 2. 渲染主表格
+            renderBody(data, matrix);
+
+            // 3. 渲染預測與回測足部 (Footer)
+            // 我們要預測的期數：data.length-4, data.length-3, data.length-2, data.length-1, 以及未來(Next)
+            renderFooter(data, matrix);
         }
 
-        // ... (renderTableBody 邏輯與之前相同，略) ...
-        function renderTableBody(data, matrix, type) {
-            const tbody = document.getElementById('tbody' + type);
+        function renderBody(data, matrix) {
+            const tbody = document.getElementById('tbody');
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
-                const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join('');
-                let rowHtml = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
+                const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
+                let html = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
+                
                 for (let c = 0; c < 5; c++) {
-                    if (i === 0 || !matrix[i][c]) { rowHtml += `<td>-</td>`; continue; }
-                    let cell = matrix[i][c].map(v => {
+                    if (i === 0 || !matrix[i][c]) { html += `<td class="diff-col">-</td>`; continue; }
+                    let cells = matrix[i][c].map(v => {
                         let cls = '';
+                        // 染色邏輯只檢查目前索引之前的資料
                         for (let j=0; j<=3; j++) {
-                            const targets = [i-(j+1), i+(j+1)];
-                            if (targets.some(t => t>=0 && t<data.length && matrix[t][c] && matrix[t][c].includes(v))) {
+                            if (i-(j+1) >= 0 && matrix[i-(j+1)][c] && matrix[i-(j+1)][c].includes(v)) {
                                 cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break;
                             }
                         }
                         return `<span class="diff-num ${cls}">${v.toString().padStart(2, '0')}</span>`;
                     }).join('');
-                    rowHtml += `<td class="diff-col">${cell}</td>`;
+                    html += `<td class="diff-col">${cells}</td>`;
                 }
-                row.innerHTML = rowHtml; tbody.appendChild(row);
+                row.innerHTML = html; tbody.appendChild(row);
             });
         }
 
-        function renderTableFoot(data, matrix, type) {
-            const tfoot = document.getElementById('tfoot' + type);
-            const last = data[data.length-1].nums.map(Number);
-            const row = document.createElement('tr'); row.className = 'predict-row';
-            let html = `<td colspan="2">✨ 下一期預測</td>`;
-            for (let c=0; c<5; c++) {
-                let counts = {};
-                for (let i=1; i<data.length; i++) {
-                    matrix[i][c].forEach(v => {
-                        if (matrix.some((m, idx) => idx !== i && m[c] && m[c].includes(v))) counts[v] = (counts[v] || 0) + 1;
-                    });
+        function renderFooter(data, matrix) {
+            const tfoot = document.getElementById('tfoot');
+            const totalCount = data.length;
+
+            // 回測最後 4 期 + 預測下 1 期 (共 5 列)
+            for (let offset = 4; offset >= 0; offset--) {
+                const isFuture = (offset === 0);
+                const targetIdx = totalCount - offset; // 這是我們要預測的那一期索引
+                const row = document.createElement('tr');
+                row.className = isFuture ? 'predict-row' : 'history-predict';
+
+                let label = isFuture ? "🔮 下期預測" : `⏮️ 回測 (${data[targetIdx].period})`;
+                let html = `<td colspan="2" style="text-align:left; padding-left:10px;"><strong>${label}</strong></td>`;
+
+                // 準備這一期的預測號碼彙整 (用來算總開出率)
+                let allPredsInRow = [];
+                let actualNums = isFuture ? [] : data[targetIdx].nums.map(Number);
+
+                // 針對 5 個欄位分別計算
+                for (let c = 0; c < 5; c++) {
+                    // 使用滑動視窗：只參考 targetIdx 之前的 20 期
+                    let start = Math.max(1, targetIdx - 20);
+                    let end = targetIdx;
+                    let counts = {};
+                    
+                    for (let i = start; i < end; i++) {
+                        if (!matrix[i][c]) continue;
+                        matrix[i][c].forEach(v => {
+                            // 檢查規律性 (是否有重複)
+                            if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) {
+                                counts[v] = (counts[v] || 0) + 1;
+                            }
+                        });
+                    }
+
+                    let hotDiffs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0, 2).map(Number);
+                    let base = data[targetIdx - 1].nums.map(Number)[c];
+                    let preds = [];
+                    hotDiffs.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if(n>=1 && n<=39) preds.push(n); })});
+                    preds = [...new Set(preds)];
+                    allPredsInRow.push(...preds);
+
+                    // 檢查命中
+                    let hits = preds.filter(p => actualNums.includes(p));
+                    let cellContent = preds.map(p => {
+                        let isHit = !isFuture && actualNums.includes(p);
+                        return `<span style="${isHit ? 'color:#ffd700; border-bottom:1px solid;' : ''}">${p.toString().padStart(2,'0')}</span>`;
+                    }).join(', ');
+
+                    html += `<td class="diff-col">${cellContent} ${hits.length > 0 ? `<span class="hit-badge">✓</span>` : ''}</td>`;
                 }
-                let hotDiffs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0,2).map(Number);
-                let base = (type===1) ? last[c] : last.slice(0,c+1).reduce((a,b)=>(a+(b%10)),0);
-                let preds = [];
-                hotDiffs.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if(n>=1 && n<=39) preds.push(n); })});
-                preds = [...new Set(preds)];
-                allPredictions.push(...preds); // 收集到總預測清單
-                html += `<td>${preds.map(p=>p.toString().padStart(2,'0')).join(', ')}</td>`;
+
+                // 計算整期的開出率 (5 個中獎號碼中有幾個被我們預測到)
+                if (!isFuture) {
+                    let uniquePreds = [...new Set(allPredsInRow)];
+                    let totalHits = actualNums.filter(n => uniquePreds.includes(n)).length;
+                    let rate = ((totalHits / 5) * 100).toFixed(0);
+                    html = html.replace('</strong></td>', `</strong> <span class="hit-rate">開出率: ${rate}%</span></td>`);
+                }
+
+                row.innerHTML = html;
+                tfoot.appendChild(row);
             }
-            row.innerHTML = html; tfoot.appendChild(row);
-        }
-
-        function renderSummary(historyCounts) {
-            // 1. 演算法熱門
-            const predCounts = {};
-            allPredictions.forEach(p => predCounts[p] = (predCounts[p] || 0) + 1);
-            const topPreds = Object.keys(predCounts).sort((a,b)=>predCounts[b]-predCounts[a]).slice(0,6);
-            document.getElementById('algoContent').innerHTML = topPreds.map(p => 
-                `<span class="hot-num">${p.toString().padStart(2,'0')}<span class="count-tag">(${predCounts[p]})</span></span>`).join('');
-
-            // 2. 歷史熱門
-            const topHistory = Object.keys(historyCounts).sort((a,b)=>historyCounts[b]-historyCounts[a]).slice(0,6);
-            document.getElementById('historyContent').innerHTML = topHistory.map(p => 
-                `<span class="hot-num">${p.toString().padStart(2,'0')}<span class="count-tag">(${historyCounts[p]}次)</span></span>`).join('');
-
-            // 3. 冷門號碼
-            const coldNums = [];
-            for(let i=1; i<=39; i++) { if(!historyCounts[i.toString().padStart(2,'0')]) coldNums.push(i); }
-            document.getElementById('coldContent').innerHTML = coldNums.slice(0,10).map(p => 
-                `<span class="hot-num" style="background:#444; color:#aaa;">${p.toString().padStart(2,'0')}</span>`).join('');
         }
 
         loadData();
