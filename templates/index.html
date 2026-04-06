@@ -2,17 +2,17 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>539 智慧分析 - 雙表格回測版</title>
+    <title>539 智慧分析 - 高對比黑字版</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
         h1 { text-align: center; color: #6d6d6d; margin-bottom: 5px; }
         h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.1em; margin-top: 40px; margin-bottom: 15px; }
         
+        /* 莫蘭迪配色圖例 */
         .legend-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .legend-item { padding: 4px 10px; border-radius: 5px; color: white; font-weight: bold; font-size: 0.85em; }
 
-        /* 莫蘭迪配色 */
         .bg-blue   { background-color: #8E9AAF; color: white !important; }
         .bg-yellow { background-color: #D4A373; color: white !important; }
         .bg-green  { background-color: #A3B18A; color: white !important; }
@@ -25,14 +25,32 @@
         .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
         .diff-num { display: inline-block; width: 20px; height: 20px; border-radius: 4px; font-family: monospace; font-weight: bold; }
         
-        /* Footer 深色高對比樣式 */
-        .predict-row { background-color: #2c2c2c !important; color: #ffffff !important; font-weight: bold; }
-        .history-predict { background-color: #444444 !important; color: #ffffff !important; font-weight: bold; }
-        .predict-row td, .history-predict td { border: 1px solid #555 !important; padding: 10px 2px; }
+        /* --- Footer 樣式修正：淺色背景、黑色數字 --- */
+        .predict-row { 
+            background-color: #fef9c3 !important; /* 淡黃色背景，區分預測 */
+            color: #000000 !important;           /* 強制黑色文字 */
+            font-weight: bold;
+        }
+        .history-predict { 
+            background-color: #f1f5f9 !important; /* 淺藍灰色背景 */
+            color: #000000 !important;           /* 強制黑色文字 */
+            font-weight: bold;
+        }
+        .predict-row td, .history-predict td { 
+            border: 1px solid #cbd5e1 !important; 
+            padding: 10px 2px;
+            color: #000000 !important;           /* 確保欄位內文字也是黑色 */
+        }
 
-        .hit-num { color: #ffcc00 !important; text-decoration: underline; text-underline-offset: 3px; }
-        .hit-badge { color: #ffcc00; font-weight: bold; margin-left: 3px; }
-        .hit-rate { background: #d32f2f; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 10px; }
+        /* 命中號碼樣式：深紅字 + 下底線 */
+        .hit-num { 
+            color: #d32f2f !important; 
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+        }
+        .hit-badge { color: #d32f2f; font-weight: bold; margin-left: 3px; }
+        .hit-rate { background: #475569; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 10px; }
         
         .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
     </style>
@@ -40,7 +58,7 @@
 <body>
 
     <div class="container">
-        <h1>今彩 539 智慧預測系統</h1>
+        <h1>今彩 539 智慧預測系統 (黑字加強版)</h1>
         
         <div class="legend-container">
             <span class="legend-item bg-blue">藍：連莊</span>
@@ -75,14 +93,11 @@
     </div>
 
     <script>
+        // 資料載入與計算邏輯保持不變...
         async function loadData() {
             const response = await fetch('/api/data');
             const data = await response.json();
-            
-            // 計算兩個矩陣
-            const matrix1 = []; // 基礎差值
-            const matrix2 = []; // 累加尾數差值
-
+            const matrix1 = []; const matrix2 = [];
             for (let i = 0; i < data.length; i++) {
                 let d1 = [], d2 = [];
                 if (i > 0) {
@@ -90,17 +105,13 @@
                     const curr = data[i].nums.map(Number);
                     const tails = prev.map(n => n % 10);
                     for (let c = 0; c < 5; c++) {
-                        // 表 1
                         d1.push(curr.map(n => Math.abs(n - prev[c])));
-                        // 表 2
                         let sumT = 0; for(let k=0; k<=c; k++) sumT += tails[k];
                         d2.push(curr.map(n => Math.abs(n - sumT)));
                     }
                 } else { for(let c=0; c<5; c++) { d1.push(null); d2.push(null); } }
                 matrix1.push(d1); matrix2.push(d2);
             }
-
-            // 渲染兩個表格
             renderTableContent(data, matrix1, 1);
             renderTableContent(data, matrix2, 2);
         }
@@ -110,7 +121,7 @@
             const tfoot = document.getElementById('tfoot' + type);
             tbody.innerHTML = ''; tfoot.innerHTML = '';
 
-            // 渲染 Body
+            // Body 渲染 (保持莫蘭迪染色)
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
@@ -131,7 +142,7 @@
                 row.innerHTML = html; tbody.appendChild(row);
             });
 
-            // 渲染 Footer (4 回測 + 1 預測)
+            // Footer 渲染 (修正為黑字樣式)
             const totalCount = data.length;
             for (let offset = 4; offset >= 0; offset--) {
                 const isFuture = (offset === 0);
@@ -141,7 +152,7 @@
                 const row = document.createElement('tr');
                 row.className = isFuture ? 'predict-row' : 'history-predict';
 
-                let label = isFuture ? "🔮 未來預測 (下期)" : `⏮️ 歷史回測 (${data[targetIdx].period})`;
+                let label = isFuture ? "🔮 未來預測" : `⏮️ 歷史回測 (${data[targetIdx].period})`;
                 let html = `<td colspan="2" style="text-align:left; padding-left:15px;"><strong>${label}</strong></td>`;
 
                 let allPredsInRow = [];
@@ -157,14 +168,10 @@
                             if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) counts[v] = (counts[v] || 0) + 1;
                         });
                     }
-
                     let hotDiffs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0, 2).map(Number);
-                    
-                    // 根據表格類型決定 Base
                     let base = 0;
-                    if (type === 1) {
-                        base = data[targetIdx - 1].nums.map(Number)[c];
-                    } else {
+                    if (type === 1) base = data[targetIdx - 1].nums.map(Number)[c];
+                    else {
                         const prevTails = data[targetIdx - 1].nums.map(n => Number(n) % 10);
                         for(let k=0; k<=c; k++) base += prevTails[k];
                     }
@@ -177,10 +184,11 @@
                     let hits = preds.filter(p => actualNums.includes(p));
                     let cellContent = preds.map(p => {
                         let isHit = !isFuture && actualNums.includes(p);
-                        return `<span class="${isHit ? 'hit-num' : ''}">${p.toString().padStart(2,'0')}</span>`;
+                        // 強制渲染為黑色文字，若是命中則套用紅色加強
+                        return `<span class="${isHit ? 'hit-num' : ''}" style="color:inherit;">${p.toString().padStart(2,'0')}</span>`;
                     }).join(', ');
 
-                    html += `<td class="diff-col">${cellContent} ${hits.length > 0 ? `<span class="hit-badge">✓</span>` : ''}</td>`;
+                    html += `<td class="diff-col" style="color:#000;">${cellContent} ${hits.length > 0 ? `<span class="hit-badge">✓</span>` : ''}</td>`;
                 }
 
                 if (!isFuture) {
