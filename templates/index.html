@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>539 智慧分析 - 25期回測版</title>
+    <title>539 智慧分析 - 高對比回測版</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
@@ -21,11 +21,31 @@
         .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
         .diff-num { display: inline-block; width: 20px; height: 20px; border-radius: 4px; font-family: monospace; font-weight: bold; }
         
-        /* 預測與回測樣式 */
-        .predict-row { background-color: #444 !important; color: #fff; border-top: 2px solid #ffd700; }
-        .history-predict { background-color: #555 !important; color: #ccc; font-size: 0.9em; }
-        .hit-badge { color: #ffd700; font-weight: bold; margin-left: 5px; }
-        .hit-rate { background: #d32f2f; color: white; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
+        /* --- Footer 樣式強化 --- */
+        .predict-row { 
+            background-color: #2c2c2c !important; /* 更深的背景 */
+            color: #ffffff !important;           /* 純白文字 */
+            font-weight: bold;
+        }
+        .history-predict { 
+            background-color: #444444 !important; /* 深灰背景 */
+            color: #ffffff !important;           /* 強制改為純白，不再用淺灰 */
+            font-weight: bold;
+        }
+        .predict-row td, .history-predict td { 
+            border: 1px solid #555 !important; 
+            padding: 10px 2px;
+        }
+
+        /* 命中號碼的特殊顏色 (亮橘黃) */
+        .hit-num { 
+            color: #ffcc00 !important; 
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .hit-badge { color: #ffcc00; font-weight: bold; margin-left: 3px; }
+        .hit-rate { background: #d32f2f; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 10px; }
+        
         .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
     </style>
 </head>
@@ -33,12 +53,10 @@
 
     <div class="container">
         <h1>今彩 539 智慧預測 (25期樣本 / 20期視窗)</h1>
-        
-        <h2>表格分析 (顯示最近 25 期)</h2>
         <table id="mainTable">
             <thead>
                 <tr>
-                    <th style="width: 70px;">日期</th>
+                    <th style="width: 75px;">日期</th>
                     <th style="width: 140px;">開獎號碼</th>
                     <th>減前 1</th><th>減前 2</th><th>減前 3</th><th>減前 4</th><th>減前 5</th>
                 </tr>
@@ -51,9 +69,8 @@
     <script>
         async function loadData() {
             const response = await fetch('/api/data');
-            const data = await response.json(); // 預期收到 25 筆
+            const data = await response.json();
             
-            // 1. 計算所有差值矩陣 (Matrix)
             const matrix = [];
             for (let i = 0; i < data.length; i++) {
                 let d = [];
@@ -67,11 +84,7 @@
                 matrix.push(d);
             }
 
-            // 2. 渲染主表格
             renderBody(data, matrix);
-
-            // 3. 渲染預測與回測足部 (Footer)
-            // 我們要預測的期數：data.length-4, data.length-3, data.length-2, data.length-1, 以及未來(Next)
             renderFooter(data, matrix);
         }
 
@@ -81,12 +94,10 @@
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
                 let html = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
-                
                 for (let c = 0; c < 5; c++) {
                     if (i === 0 || !matrix[i][c]) { html += `<td class="diff-col">-</td>`; continue; }
                     let cells = matrix[i][c].map(v => {
                         let cls = '';
-                        // 染色邏輯只檢查目前索引之前的資料
                         for (let j=0; j<=3; j++) {
                             if (i-(j+1) >= 0 && matrix[i-(j+1)][c] && matrix[i-(j+1)][c].includes(v)) {
                                 cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break;
@@ -104,23 +115,19 @@
             const tfoot = document.getElementById('tfoot');
             const totalCount = data.length;
 
-            // 回測最後 4 期 + 預測下 1 期 (共 5 列)
             for (let offset = 4; offset >= 0; offset--) {
                 const isFuture = (offset === 0);
-                const targetIdx = totalCount - offset; // 這是我們要預測的那一期索引
+                const targetIdx = totalCount - offset;
                 const row = document.createElement('tr');
                 row.className = isFuture ? 'predict-row' : 'history-predict';
 
-                let label = isFuture ? "🔮 下期預測" : `⏮️ 回測 (${data[targetIdx].period})`;
-                let html = `<td colspan="2" style="text-align:left; padding-left:10px;"><strong>${label}</strong></td>`;
+                let label = isFuture ? "🔮 未來預測 (下期)" : `⏮️ 歷史回測 (${data[targetIdx].period})`;
+                let html = `<td colspan="2" style="text-align:left; padding-left:15px;"><strong>${label}</strong></td>`;
 
-                // 準備這一期的預測號碼彙整 (用來算總開出率)
                 let allPredsInRow = [];
                 let actualNums = isFuture ? [] : data[targetIdx].nums.map(Number);
 
-                // 針對 5 個欄位分別計算
                 for (let c = 0; c < 5; c++) {
-                    // 使用滑動視窗：只參考 targetIdx 之前的 20 期
                     let start = Math.max(1, targetIdx - 20);
                     let end = targetIdx;
                     let counts = {};
@@ -128,7 +135,6 @@
                     for (let i = start; i < end; i++) {
                         if (!matrix[i][c]) continue;
                         matrix[i][c].forEach(v => {
-                            // 檢查規律性 (是否有重複)
                             if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) {
                                 counts[v] = (counts[v] || 0) + 1;
                             }
@@ -142,22 +148,21 @@
                     preds = [...new Set(preds)];
                     allPredsInRow.push(...preds);
 
-                    // 檢查命中
                     let hits = preds.filter(p => actualNums.includes(p));
                     let cellContent = preds.map(p => {
                         let isHit = !isFuture && actualNums.includes(p);
-                        return `<span style="${isHit ? 'color:#ffd700; border-bottom:1px solid;' : ''}">${p.toString().padStart(2,'0')}</span>`;
+                        // 如果命中，套用 .hit-num 樣式，否則就是一般白色
+                        return `<span class="${isHit ? 'hit-num' : ''}">${p.toString().padStart(2,'0')}</span>`;
                     }).join(', ');
 
                     html += `<td class="diff-col">${cellContent} ${hits.length > 0 ? `<span class="hit-badge">✓</span>` : ''}</td>`;
                 }
 
-                // 計算整期的開出率 (5 個中獎號碼中有幾個被我們預測到)
                 if (!isFuture) {
                     let uniquePreds = [...new Set(allPredsInRow)];
                     let totalHits = actualNums.filter(n => uniquePreds.includes(n)).length;
                     let rate = ((totalHits / 5) * 100).toFixed(0);
-                    html = html.replace('</strong></td>', `</strong> <span class="hit-rate">開出率: ${rate}%</span></td>`);
+                    html = html.replace('</strong>', `</strong> <span class="hit-rate">命中率: ${rate}%</span>`);
                 }
 
                 row.innerHTML = html;
