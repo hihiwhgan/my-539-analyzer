@@ -203,18 +203,6 @@
                 row.innerHTML = html;
                 tbody.appendChild(row);
             });
-            
-            // 新增一行顯示「純交集」
-            const overlapRow = document.createElement('tr');
-            overlapRow.style.backgroundColor = '#334155';
-            overlapRow.style.color = '#fff';
-            let overlapHtml = `<td style="padding-left:15px; text-align:left;"><strong>🔥 雙模式交集號碼</strong></td>`;
-            for (let c = 0; c < 5; c++) {
-                const intersect = mode1Next[c].filter(n => mode2Next[c].includes(n));
-                overlapHtml += `<td>${intersect.length > 0 ? intersect.map(n => `<span class="overlap-num">${n.toString().padStart(2,'0')}</span>`).join(' ') : '---'}</td>`;
-            }
-            overlapRow.innerHTML = overlapHtml;
-            tbody.appendChild(overlapRow);
         }
 
         loadData();
