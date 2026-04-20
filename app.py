@@ -35,7 +35,7 @@ def fetch_539_data():
                             "nums": nums
                         })
             
-            if len(data_list) >= 25: break
+            if len(data_list) >= 35: break
 
         return data_list[::-1]
     except Exception as e:
