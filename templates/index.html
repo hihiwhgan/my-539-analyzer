@@ -2,11 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>539 智慧分析 - 預測整合對照版</title>
+    <title>539 智慧分析 - 10期回測合併版</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        h1 { text-align: center; color: #6d6d6d; margin-bottom: 5px; }
+        h1 { text-align: center; color: #6d6d6d; }
         h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.1em; margin-top: 40px; margin-bottom: 15px; }
         
         /* 莫蘭迪圖例 */
@@ -19,33 +19,27 @@
 
         table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
         th { background: #eaeaea; color: #666; padding: 10px; border: 1px solid #ddd; }
-        td { padding: 6px 2px; border: 1px solid #efefef; text-align: center; }
+        td { padding: 6px 2px; border: 1px solid #efefef; text-align: center; color: #000; font-weight: bold; }
         
         .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
-        .diff-num { display: inline-block; width: 20px; height: 20px; border-radius: 4px; font-family: monospace; font-weight: bold; }
         
-        /* Footer & 整合表樣式：黑字高對比 */
-        .predict-row { background-color: #fef9c3 !important; color: #000 !important; font-weight: bold; }
-        .history-predict { background-color: #f1f5f9 !important; color: #000 !important; font-weight: bold; }
-        .predict-row td, .history-predict td { border: 1px solid #cbd5e1 !important; padding: 10px 2px; }
-
-        /* 命中與交集樣式 */
-        .hit-num { color: #d32f2f !important; text-decoration: underline; text-decoration-thickness: 2px; }
-        .overlap-num { background-color: #000; color: #ffd700 !important; padding: 2px 6px; border-radius: 4px; font-weight: 900; }
-        .hit-badge { color: #d32f2f; font-weight: bold; margin-left: 3px; }
+        /* Footer 樣式：淺底黑字 */
+        .predict-row { background-color: #fef9c3 !important; }
+        .history-predict { background-color: #f1f5f9 !important; }
+        
+        /* 命中顏色邏輯 */
+        .hit-single { color: #0000ff !important; text-decoration: underline; } /* 藍色：單一命中 */
+        .hit-both { color: #ff0000 !important; text-decoration: underline; font-weight: 900; } /* 紅色：雙重命中 */
         .hit-rate { background: #475569; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 10px; }
         
         .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
-        
-        /* 整合表專用 */
-        #table-compare th { background: #334155; color: white; }
-        #table-compare td { font-size: 1.1em; padding: 15px 5px; }
+        #table-backtest-merged th { background: #334155; color: white; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>今彩 539 智慧預測分析系統</h1>
+        <h1>今彩 539 智慧預測 (10期回測合併)</h1>
         
         <div class="legend-container">
             <span class="legend-item bg-blue">藍：連莊</span>
@@ -54,155 +48,164 @@
             <span class="legend-item bg-purple">紫：隔 3 期</span>
         </div>
 
-        <h2>表格一：基礎差值分析 (|本期各號 - 上期第 n 號|)</h2>
+        <h2>表格一：基礎差值分析</h2>
         <table id="table1">
             <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減前 1</th><th>減前 2</th><th>減前 3</th><th>減前 4</th><th>減前 5</th></tr></thead>
             <tbody id="tbody1"></tbody><tfoot id="tfoot1"></tfoot>
         </table>
 
-        <h2>表格二：累加尾數分析 (|本期各號 - 上期累計尾數|)</h2>
+        <h2>表格二：累加尾數分析</h2>
         <table id="table2">
             <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減(尾1)</th><th>減(尾1+2)</th><th>減(尾1~3)</th><th>減(尾1~4)</th><th>減(尾1~5)</th></tr></thead>
             <tbody id="tbody2"></tbody><tfoot id="tfoot2"></tfoot>
         </table>
 
-        <h2>✨ 下期預測整合對照 (兩大模式彙整)</h2>
-        <table id="table-compare">
+        <h2>📊 10期合併回測報告 (藍：單一模式中 | 紅：雙模式皆中)</h2>
+        <table id="table-backtest-merged">
             <thead>
                 <tr>
-                    <th style="width: 215px;">分析模式</th>
-                    <th>預測位置 1</th><th>預測位置 2</th><th>預測位置 3</th><th>預測位置 4</th><th>預測位置 5</th>
+                    <th style="width: 80px;">日期</th>
+                    <th style="width: 150px;">當期獎號</th>
+                    <th>模式一預測命中</th>
+                    <th>模式二預測命中</th>
+                    <th>命中狀態總結</th>
                 </tr>
             </thead>
-            <tbody id="tbody-compare"></tbody>
+            <tbody id="tbody-merged"></tbody>
         </table>
     </div>
 
     <script>
-        let mode1Next = []; // 儲存模式1下期預測
-        let mode2Next = []; // 儲存模式2下期預測
-
         async function loadData() {
             const response = await fetch('/api/data');
             const data = await response.json();
-            const matrix1 = []; const matrix2 = [];
+            const matrix1 = calculateMatrix(data, 1);
+            const matrix2 = calculateMatrix(data, 2);
 
+            // 渲染基礎表格
+            const m1Results = renderTableContent(data, matrix1, 1);
+            const m2Results = renderTableContent(data, matrix2, 2);
+
+            // 渲染合併回測表 (10期)
+            renderMergedBacktest(data, m1Results, m2Results);
+        }
+
+        function calculateMatrix(data, type) {
+            const matrix = [];
             for (let i = 0; i < data.length; i++) {
-                let d1 = [], d2 = [];
+                let d = [];
                 if (i > 0) {
                     const prev = data[i-1].nums.map(Number);
                     const curr = data[i].nums.map(Number);
                     const tails = prev.map(n => n % 10);
                     for (let c = 0; c < 5; c++) {
-                        d1.push(curr.map(n => Math.abs(n - prev[c])));
-                        let sumT = 0; for(let k=0; k<=c; k++) sumT += tails[k];
-                        d2.push(curr.map(n => Math.abs(n - sumT)));
+                        if (type === 1) d.push(curr.map(n => Math.abs(n - prev[c])));
+                        else { let s=0; for(let k=0; k<=c; k++) s += tails[k]; d.push(curr.map(n => Math.abs(n-s))); }
                     }
-                } else { for(let c=0; c<5; c++) { d1.push(null); d2.push(null); } }
-                matrix1.push(d1); matrix2.push(d2);
+                } else { for(let c=0; c<5; c++) d.push(null); }
+                matrix.push(d);
             }
-
-            mode1Next = renderTableContent(data, matrix1, 1);
-            mode2Next = renderTableContent(data, matrix2, 2);
-            renderComparison();
+            return matrix;
         }
 
         function renderTableContent(data, matrix, type) {
             const tbody = document.getElementById('tbody' + type);
             const tfoot = document.getElementById('tfoot' + type);
             tbody.innerHTML = ''; tfoot.innerHTML = '';
-            let nextPeriodPreds = [];
+            let allPredictions = {}; // 存下每一期的預測以利合併
 
-            // 渲染 Body... (略過與之前相同的邏輯)
+            // 渲染 Body
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
                 let html = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
-                for (let c = 0; c < 5; c++) {
-                    if (i === 0 || !matrix[i][c]) { html += `<td class="diff-col">-</td>`; continue; }
+                for (let c=0; c<5; c++) {
+                    if (i===0 || !matrix[i][c]) { html += `<td class="diff-col">-</td>`; continue; }
                     let cells = matrix[i][c].map(v => {
                         let cls = '';
                         for (let j=0; j<=3; j++) {
-                            if (i-(j+1) >= 0 && matrix[i-(j+1)][c] && matrix[i-(j+1)][c].includes(v)) {
-                                cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break;
-                            }
+                            if (i-(j+1)>=0 && matrix[i-(j+1)][c] && matrix[i-(j+1)][c].includes(v)) { cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break; }
                         }
-                        return `<span class="diff-num ${cls}">${v.toString().padStart(2, '0')}</span>`;
+                        return `<span class="diff-num ${cls}">${v.toString().padStart(2,'0')}</span>`;
                     }).join('');
                     html += `<td class="diff-col">${cells}</td>`;
                 }
                 row.innerHTML = html; tbody.appendChild(row);
             });
 
-            // 渲染 Footer
-            const totalCount = data.length;
-            for (let offset = 4; offset >= 0; offset--) {
+            // 渲染 Footer (10期回測 + 1預測)
+            const total = data.length;
+            for (let offset = 10; offset >= 0; offset--) {
                 const isFuture = (offset === 0);
-                const targetIdx = totalCount - offset;
+                const targetIdx = total - offset;
+                if (targetIdx >= total && !isFuture) continue;
+
                 const row = document.createElement('tr');
                 row.className = isFuture ? 'predict-row' : 'history-predict';
-                let label = isFuture ? "🔮 未來預測" : `⏮️ 回測 (${data[targetIdx].period})`;
-                let html = `<td colspan="2" style="text-align:left; padding-left:15px;"><strong>${label}</strong></td>`;
+                let label = isFuture ? "🔮 未來預測" : `回測 ${data[targetIdx].period}`;
                 
-                let allPreds = [];
-                let actual = isFuture ? [] : data[targetIdx].nums.map(Number);
-
-                for (let c = 0; c < 5; c++) {
+                let currentPreds = [];
+                for (let c=0; c<5; c++) {
                     let start = Math.max(1, targetIdx - 20);
                     let counts = {};
-                    for (let i = start; i < targetIdx; i++) {
-                        matrix[i][c].forEach(v => {
-                            if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) counts[v] = (counts[v] || 0) + 1;
-                        });
+                    for (let i=start; i<targetIdx; i++) {
+                        matrix[i][c].forEach(v => { if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) counts[v] = (counts[v] || 0) + 1; });
                     }
-                    let hotDiffs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0, 2).map(Number);
+                    let hot = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0, 2).map(Number);
                     let base = 0;
-                    if (type === 1) base = data[targetIdx - 1].nums.map(Number)[c];
-                    else {
-                        const prevTails = data[targetIdx - 1].nums.map(n => Number(n) % 10);
-                        for(let k=0; k<=c; k++) base += prevTails[k];
-                    }
-                    let preds = [];
-                    hotDiffs.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if(n>=1 && n<=39) preds.push(n); })});
-                    preds = [...new Set(preds)];
-                    if (isFuture) nextPeriodPreds.push(preds); // 存入外部
-                    
-                    let cellContent = preds.map(p => {
-                        let isHit = !isFuture && actual.includes(p);
-                        return `<span class="${isHit ? 'hit-num' : ''}" style="color:black;">${p.toString().padStart(2,'0')}</span>`;
-                    }).join(', ');
-                    html += `<td class="diff-col">${cellContent} ${!isFuture && preds.some(p=>actual.includes(p)) ? '<span class="hit-badge">✓</span>' : ''}</td>`;
+                    if (type === 1) base = data[targetIdx-1].nums.map(Number)[c];
+                    else { const t = data[targetIdx-1].nums.map(n=>Number(n)%10); for(let k=0;k<=c;k++) base+=t[k]; }
+                    let ps = []; hot.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if(n>=1 && n<=39) ps.push(n); })});
+                    currentPreds.push([...new Set(ps)]);
                 }
-                row.innerHTML = html; tfoot.appendChild(row);
+                allPredictions[targetIdx] = currentPreds;
+
+                // 渲染表格足部
+                if (offset <= 4 || isFuture) { // 原本表格只保留近4期回測避免太長
+                    let actual = isFuture ? [] : data[targetIdx].nums.map(Number);
+                    let h = `<td colspan="2" style="text-align:left; padding-left:15px;"><strong>${label}</strong></td>`;
+                    currentPreds.forEach(ps => {
+                        let cell = ps.map(p => `<span style="${!isFuture && actual.includes(p) ? 'color:red;' : ''}">${p.toString().padStart(2,'0')}</span>`).join(', ');
+                        h += `<td class="diff-col">${cell}</td>`;
+                    });
+                    row.innerHTML = h; tfoot.appendChild(row);
+                }
             }
-            return nextPeriodPreds;
+            return allPredictions;
         }
 
-        function renderComparison() {
-            const tbody = document.getElementById('tbody-compare');
+        function renderMergedBacktest(data, m1Preds, m2Preds) {
+            const tbody = document.getElementById('tbody-merged');
             tbody.innerHTML = '';
-            
-            const modes = [
-                { name: "模式一：基礎差值", data: mode1Next },
-                { name: "模式二：累加尾數", data: mode2Next }
-            ];
+            const total = data.length;
 
-            modes.forEach((m, idx) => {
+            for (let offset = 10; offset >= 1; offset--) {
+                const idx = total - offset;
+                const actual = data[idx].nums.map(Number);
+                const p1 = m1Preds[idx].flat();
+                const p2 = m2Preds[idx].flat();
+
                 const row = document.createElement('tr');
-                row.className = 'predict-row';
-                let html = `<td style="text-align:left; padding-left:15px;"><strong>${m.name}</strong></td>`;
-                m.data.forEach((preds, colIdx) => {
-                    // 檢查是否與另一模式重複
-                    const otherMode = modes[1 - idx].data[colIdx];
-                    let cellHtml = preds.map(p => {
-                        const isOverlap = otherMode.includes(p);
-                        return `<span class="${isOverlap ? 'overlap-num' : ''}">${p.toString().padStart(2, '0')}</span>`;
-                    }).join(', ');
-                    html += `<td class="diff-col">${cellHtml}</td>`;
-                });
-                row.innerHTML = html;
+                
+                // 找出命中號碼與顏色
+                let hitResultHtml = actual.map(n => {
+                    const inP1 = p1.includes(n);
+                    const inP2 = p2.includes(n);
+                    let cls = '';
+                    if (inP1 && inP2) cls = 'hit-both'; // 紅色
+                    else if (inP1 || inP2) cls = 'hit-single'; // 藍色
+                    return `<span class="${cls}">${n.toString().padStart(2,'0')}</span>`;
+                }).join(' ');
+
+                row.innerHTML = `
+                    <td>${data[idx].period}</td>
+                    <td>${actual.map(n => `<span class="ball">${n.toString().padStart(2,'0')}</span>`).join(' ')}</td>
+                    <td>${actual.filter(n => p1.includes(n)).join(', ') || '-'}</td>
+                    <td>${actual.filter(n => p2.includes(n)).join(', ') || '-'}</td>
+                    <td style="font-size: 1.2em;">${hitResultHtml}</td>
+                `;
                 tbody.appendChild(row);
-            });
+            }
         }
 
         loadData();
