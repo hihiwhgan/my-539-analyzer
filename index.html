@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>539 智慧分析 - 10期回測合併版</title>
+    <style>
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        h1 { text-align: center; color: #6d6d6d; }
+        h2 { border-left: 5px solid #8E9AAF; padding-left: 10px; color: #666; font-size: 1.1em; margin-top: 30px; margin-bottom: 15px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
+        th { background: #eaeaea; color: #666; padding: 8px; border: 1px solid #ddd; }
+        td { padding: 5px 2px; border: 1px solid #efefef; text-align: center; }
+        
+        /* 莫蘭迪配色 */
+        .bg-blue { background-color: #8E9AAF; color: white !important; }
+        .bg-yellow { background-color: #D4A373; color: white !important; }
+        .bg-green { background-color: #A3B18A; color: white !important; }
+        .bg-purple { background-color: #957DAD; color: white !important; }
+        
+        .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
+        .diff-num { display: inline-block; width: 18px; border-radius: 3px; font-weight: bold; }
+
+        /* 回測與合併表專用樣式 */
+        .history-predict { background-color: #f8fafc !important; color: #000 !important; font-weight: bold; }
+        .predict-row { background-color: #fffbeb !important; color: #000 !important; font-weight: bold; }
+        
+        /* 命中顏色邏輯 */
+        .hit-single { color: #0000FF !important; text-decoration: underline; font-weight: 900; } /* 單模式開出：藍色 */
+        .hit-both { color: #FF0000 !important; text-decoration: underline; font-weight: 900; border: 1px solid #FF0000; padding: 0 2px; } /* 雙模式開出：紅色 */
+        
+        .rate-tag { background: #475569; color: white; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
+        .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
+
+        #table-merged th { background: #1e293b; color: white; }
+        #table-merged td { font-size: 1em; padding: 8px 2px; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>今彩 539 智慧回測分析系統</h1>
+
+        <h2>表格一：基礎差值分析</h2>
+        <table id="table1">
+            <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減前1</th><th>減前2</th><th>減前3</th><th>減前4</th><th>減前5</th></tr></thead>
+            <tbody id="tbody1"></tbody><tfoot id="tfoot1"></tfoot>
+        </table>
+
+        <h2>表格二：累加尾數分析</h2>
+        <table id="table2">
+            <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減(尾1)</th><th>減(尾1+2)</th><th>減(尾1~3)</th><th>減(尾1~4)</th><th>減(尾1~5)</th></tr></thead>
+            <tbody id="tbody2"></tbody><tfoot id="tfoot2"></tfoot>
+        </table>
+
+        <h2>📊 十期雙模式合併回測表 (命中驗證)</h2>
+        <table id="table-merged">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">回測日期</th>
+                    <th style="width: 140px;">當期獎號</th>
+                    <th>位置 1 合併預測</th><th>位置 2 合併預測</th><th>位置 3 合併預測</th><th>位置 4 合併預測</th><th>位置 5 合併預測</th>
+                    <th style="width: 80px;">命中率</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-merged"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let allHistoryData = [];
+        let mode1Backtests = {}; // 儲存模式1每一期的預測
+        let mode2Backtests = {}; // 儲存模式2每一期的預測
+
+        async function loadData() {
+            try {
+                const response = await fetch('./data.json?t=' + new Date().getTime()); 
+                const data = await response.json();
+                allHistoryData = data;
+                
+                const matrix1 = calculateMatrix(data, 1);
+                const matrix2 = calculateMatrix(data, 2);
+    
+                renderMainTable(data, matrix1, 1);
+                renderMainTable(data, matrix2, 2);
+                renderMergedTable(data, matrix1, matrix2);
+            } catch (err) {
+        console.error("載入 data.json 失敗:", err);
+    }
+        }
+
+        function calculateMatrix(data, type) {
+            const matrix = [];
+            for (let i = 0; i < data.length; i++) {
+                let d = [];
+                if (i > 0) {
+                    const prev = data[i-1].nums.map(Number);
+                    const curr = data[i].nums.map(Number);
+                    if (type === 1) {
+                        for(let c=0; c<5; c++) d.push(curr.map(n => Math.abs(n - prev[c])));
+                    } else {
+                        const tails = prev.map(n => n % 10);
+                        for(let c=0; c<5; c++) {
+                            let s=0; for(let k=0; k<=c; k++) s+=tails[k];
+                            d.push(curr.map(n => Math.abs(n - s)));
+                        }
+                    }
+                } else { for(let c=0; c<5; c++) d.push(null); }
+                matrix.push(d);
+            }
+            return matrix;
+        }
+
+        function renderMainTable(data, matrix, type) {
+            const tbody = document.getElementById('tbody' + type);
+            const tfoot = document.getElementById('tfoot' + type);
+            tbody.innerHTML = ''; tfoot.innerHTML = '';
+
+            // 渲染 Body
+            data.forEach((item, i) => {
+                const row = document.createElement('tr');
+                const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
+                let html = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
+                for (let c=0; c<5; c++) {
+                    if (i === 0 || !matrix[i][c]) { html += `<td>-</td>`; continue; }
+                    let cells = matrix[i][c].map(v => {
+                        let cls = '';
+                        for (let j=0; j<=3; j++) { if (i-(j+1)>=0 && matrix[i-(j+1)][c] && matrix[i-(j+1)][c].includes(v)) { cls = ['bg-blue', 'bg-yellow', 'bg-green', 'bg-purple'][j]; break; } }
+                        return `<span class="diff-num ${cls}">${v.toString().padStart(2, '0')}</span>`;
+                    }).join('');
+                    html += `<td class="diff-col">${cells}</td>`;
+                }
+                row.innerHTML = html; tbody.appendChild(row);
+            });
+
+            // 渲染 Footer (10 期回測 + 1 預測)
+            const total = data.length;
+            for (let offset = 10; offset >= 0; offset--) {
+                const targetIdx = total - offset;
+                if (targetIdx >= total && offset !== 0) continue;
+                const isFuture = (offset === 0);
+                const row = document.createElement('tr');
+                row.className = isFuture ? 'predict-row' : 'history-predict';
+                
+                let periodKey = isFuture ? "NEXT" : data[targetIdx].period;
+                let predsForThisPeriod = [];
+
+                for (let c=0; c<5; c++) {
+                    let start = Math.max(1, (isFuture ? total : targetIdx) - 20);
+                    let end = isFuture ? total : targetIdx;
+                    let counts = {};
+                    for (let i = start; i < end; i++) {
+                        matrix[i][c].forEach(v => {
+                            if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) counts[v] = (counts[v] || 0) + 1;
+                        });
+                    }
+                    let hot = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0, 2).map(Number);
+                    let base = 0;
+                    const refIdx = (isFuture ? total : targetIdx) - 1;
+                    if (type === 1) base = data[refIdx].nums.map(Number)[c];
+                    else {
+                        const t = data[refIdx].nums.map(n => Number(n)%10);
+                        for(let k=0; k<=c; k++) base += t[k];
+                    }
+                    let p = []; hot.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if(n>=1 && n<=39) p.push(n); })});
+                    p = [...new Set(p)];
+                    predsForThisPeriod.push(p);
+                }
+                if (type === 1) mode1Backtests[periodKey] = predsForThisPeriod;
+                else mode2Backtests[periodKey] = predsForThisPeriod;
+
+                // 這裡只簡單渲染文字，詳細命中率看合併表
+                row.innerHTML = `<td colspan="2">${isFuture ? "🔮 下期" : "⏮️ "+periodKey}</td><td colspan="5">已列入合併表分析</td>`;
+                tfoot.appendChild(row);
+            }
+        }
+
+        function renderMergedTable(data, matrix1, matrix2) {
+            const tbody = document.getElementById('tbody-merged');
+            tbody.innerHTML = '';
+            const total = data.length;
+
+            for (let offset = 10; offset >= 0; offset--) {
+                const targetIdx = total - offset;
+                const isFuture = (offset === 0);
+                if (!isFuture && targetIdx >= total) continue;
+
+                const row = document.createElement('tr');
+                row.className = isFuture ? 'predict-row' : '';
+                const period = isFuture ? "NEXT" : data[targetIdx].period;
+                const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
+                const balls = isFuture ? "待開獎" : data[targetIdx].nums.map(n => `<span class="ball">${n}</span>`).join(' ');
+
+                let html = `<td><strong>${period}</strong></td><td>${balls}</td>`;
+                let totalHits = 0;
+
+                const p1Row = mode1Backtests[period];
+                const p2Row = mode2Backtests[period];
+
+                for (let c = 0; c < 5; c++) {
+                    const p1 = p1Row[c];
+                    const p2 = p2Row[c];
+                    const combined = [...new Set([...p1, ...p2])];
+                    
+                    let cellHtml = combined.map(num => {
+                        const inP1 = p1.includes(num);
+                        const inP2 = p2.includes(num);
+                        const isHit = !isFuture && actual.includes(num);
+                        
+                        let cls = "";
+                        if (isHit) {
+                            if (inP1 && inP2) cls = "hit-both"; // 兩邊都開：紅
+                            else cls = "hit-single"; // 單邊開：藍
+                        }
+                        return `<span class="${cls}">${num.toString().padStart(2, '0')}</span>`;
+                    }).join(', ');
+                    
+                    html += `<td>${cellHtml}</td>`;
+                }
+
+                if (!isFuture) {
+                    const allPreds = [...new Set([...p1Row.flat(), ...p2Row.flat()])];
+                    totalHits = actual.filter(n => allPreds.includes(n)).length;
+                    html += `<td><span class="rate-tag">${(totalHits/5*100).toFixed(0)}%</span></td>`;
+                } else {
+                    html += `<td>---</td>`;
+                }
+
+                row.innerHTML = html;
+                tbody.appendChild(row);
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
