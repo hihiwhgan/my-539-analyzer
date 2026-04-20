@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>539 智慧分析 - 10期回測合併版</title>
+    <title>539 智慧分析 - 雙模分層回測版</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #555; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
@@ -22,45 +22,49 @@
         .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-weight: bold; font-size: 0.75em; }
         .diff-num { display: inline-block; width: 18px; border-radius: 3px; font-weight: bold; }
 
-        /* 回測與合併表專用樣式 */
-        .history-predict { background-color: #f8fafc !important; color: #000 !important; font-weight: bold; }
-        .predict-row { background-color: #fffbeb !important; color: #000 !important; font-weight: bold; }
+        /* 回測與預測區樣式 */
+        .predict-row { background-color: #fffbeb !important; color: #000 !important; }
         
         /* 命中顏色邏輯 */
-        .hit-single { color: #0000FF !important; text-decoration: underline; font-weight: 900; } /* 單模式開出：藍色 */
-        .hit-both { color: #FF0000 !important; text-decoration: underline; font-weight: 900; border: 1px solid #FF0000; padding: 0 2px; } /* 雙模式開出：紅色 */
+        .hit-single { color: #0000FF !important; text-decoration: underline; font-weight: 900; } 
+        .hit-both { color: #FF0000 !important; text-decoration: underline; font-weight: 900; border: 1px solid #FF0000; padding: 0 2px; } 
         
-        .rate-tag { background: #475569; color: white; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
-        .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
-
+        .rate-tag { background: #475569; color: white; padding: 2px 5px; border-radius: 3px; font-size: 0.85em; }
+        
+        /* 合併表分層樣式 */
+        .mode-label { font-size: 0.7em; color: #888; margin-right: 5px; border: 1px solid #ddd; padding: 0 2px; border-radius: 3px; background: #f9f9f9; }
+        .mode-line { display: block; border-bottom: 1px dashed #eee; padding: 4px 0; }
+        .mode-line:last-child { border-bottom: none; }
+        
         #table-merged th { background: #1e293b; color: white; }
-        #table-merged td { font-size: 1em; padding: 8px 2px; border: 1px solid #e2e8f0; }
+        #table-merged td { font-size: 0.95em; padding: 0; vertical-align: middle; border: 1px solid #e2e8f0; }
+        .period-cell { background: #f8fafc; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>今彩 539 智慧回測分析系統</h1>
+        <h1>今彩 539 智慧分析系統</h1>
 
         <h2>表格一：基礎差值分析</h2>
         <table id="table1">
             <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減前1</th><th>減前2</th><th>減前3</th><th>減前4</th><th>減前5</th></tr></thead>
-            <tbody id="tbody1"></tbody><tfoot id="tfoot1"></tfoot>
+            <tbody id="tbody1"></tbody>
         </table>
 
         <h2>表格二：累加尾數分析</h2>
         <table id="table2">
             <thead><tr><th style="width:75px">日期</th><th style="width:140px">開獎號碼</th><th>減(尾1)</th><th>減(尾1+2)</th><th>減(尾1~3)</th><th>減(尾1~4)</th><th>減(尾1~5)</th></tr></thead>
-            <tbody id="tbody2"></tbody><tfoot id="tfoot2"></tfoot>
+            <tbody id="tbody2"></tbody>
         </table>
 
-        <h2>📊 十期雙模式合併回測表 (命中驗證)</h2>
+        <h2>📊 十期雙模式分層回測表 (紅藍命中驗證)</h2>
         <table id="table-merged">
             <thead>
                 <tr>
-                    <th style="width: 100px;">回測日期</th>
+                    <th style="width: 110px;">回測期別/模式</th>
                     <th style="width: 140px;">當期獎號</th>
-                    <th>位置 1 合併預測</th><th>位置 2 合併預測</th><th>位置 3 合併預測</th><th>位置 4 合併預測</th><th>位置 5 合併預測</th>
+                    <th>位置 1 預測</th><th>位置 2 預測</th><th>位置 3 預測</th><th>位置 4 預測</th><th>位置 5 預測</th>
                     <th style="width: 80px;">命中率</th>
                 </tr>
             </thead>
@@ -69,25 +73,20 @@
     </div>
 
     <script>
-        let allHistoryData = [];
-        let mode1Backtests = {}; // 儲存模式1每一期的預測
-        let mode2Backtests = {}; // 儲存模式2每一期的預測
+        let mode1Backtests = {}; 
+        let mode2Backtests = {}; 
 
         async function loadData() {
             try {
                 const response = await fetch('./data.json?t=' + new Date().getTime()); 
                 const data = await response.json();
-                allHistoryData = data;
-                
                 const matrix1 = calculateMatrix(data, 1);
                 const matrix2 = calculateMatrix(data, 2);
-    
+
                 renderMainTable(data, matrix1, 1);
                 renderMainTable(data, matrix2, 2);
-                renderMergedTable(data, matrix1, matrix2);
-            } catch (err) {
-        console.error("載入 data.json 失敗:", err);
-    }
+                renderMergedTable(data);
+            } catch (err) { console.error("載入數據失敗:", err); }
         }
 
         function calculateMatrix(data, type) {
@@ -114,10 +113,7 @@
 
         function renderMainTable(data, matrix, type) {
             const tbody = document.getElementById('tbody' + type);
-            const tfoot = document.getElementById('tfoot' + type);
-            tbody.innerHTML = ''; tfoot.innerHTML = '';
-
-            // 渲染 Body
+            tbody.innerHTML = ''; 
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${n}</span>`).join(' ');
@@ -134,15 +130,11 @@
                 row.innerHTML = html; tbody.appendChild(row);
             });
 
-            // 渲染 Footer (10 期回測 + 1 預測)
             const total = data.length;
             for (let offset = 10; offset >= 0; offset--) {
                 const targetIdx = total - offset;
                 if (targetIdx >= total && offset !== 0) continue;
                 const isFuture = (offset === 0);
-                const row = document.createElement('tr');
-                row.className = isFuture ? 'predict-row' : 'history-predict';
-                
                 let periodKey = isFuture ? "NEXT" : data[targetIdx].period;
                 let predsForThisPeriod = [];
 
@@ -169,14 +161,10 @@
                 }
                 if (type === 1) mode1Backtests[periodKey] = predsForThisPeriod;
                 else mode2Backtests[periodKey] = predsForThisPeriod;
-
-                // 這裡只簡單渲染文字，詳細命中率看合併表
-                row.innerHTML = `<td colspan="2">${isFuture ? "🔮 下期" : "⏮️ "+periodKey}</td><td colspan="5">已列入合併表分析</td>`;
-                tfoot.appendChild(row);
             }
         }
 
-        function renderMergedTable(data, matrix1, matrix2) {
+        function renderMergedTable(data) {
             const tbody = document.getElementById('tbody-merged');
             tbody.innerHTML = '';
             const total = data.length;
@@ -192,37 +180,48 @@
                 const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
                 const balls = isFuture ? "待開獎" : data[targetIdx].nums.map(n => `<span class="ball">${n}</span>`).join(' ');
 
-                let html = `<td><strong>${period}</strong></td><td>${balls}</td>`;
-                let totalHits = 0;
-
                 const p1Row = mode1Backtests[period];
                 const p2Row = mode2Backtests[period];
 
+                // 第一、二欄 (期別與獎號)
+                let html = `<td class="period-cell">${period}<br><span class="mode-label">M1</span><br><span class="mode-label">M2</span></td>`;
+                html += `<td>${balls}</td>`;
+                
+                let matchedInRow = [];
+
+                // 處理 5 個預測位置
                 for (let c = 0; c < 5; c++) {
                     const p1 = p1Row[c];
                     const p2 = p2Row[c];
-                    const combined = [...new Set([...p1, ...p2])];
                     
-                    let cellHtml = combined.map(num => {
-                        const inP1 = p1.includes(num);
-                        const inP2 = p2.includes(num);
+                    // 模式一渲染邏輯
+                    let p1Html = p1.map(num => {
                         const isHit = !isFuture && actual.includes(num);
-                        
-                        let cls = "";
-                        if (isHit) {
-                            if (inP1 && inP2) cls = "hit-both"; // 兩邊都開：紅
-                            else cls = "hit-single"; // 單邊開：藍
-                        }
+                        const isBoth = p2.includes(num); // 是否模式二也有這個號碼
+                        let cls = isHit ? (isBoth ? "hit-both" : "hit-single") : "";
+                        if (isHit) matchedInRow.push(num);
                         return `<span class="${cls}">${num.toString().padStart(2, '0')}</span>`;
                     }).join(', ');
-                    
-                    html += `<td>${cellHtml}</td>`;
+
+                    // 模式二渲染邏輯
+                    let p2Html = p2.map(num => {
+                        const isHit = !isFuture && actual.includes(num);
+                        const isBoth = p1.includes(num); // 是否模式一也有這個號碼
+                        let cls = isHit ? (isBoth ? "hit-both" : "hit-single") : "";
+                        if (isHit) matchedInRow.push(num);
+                        return `<span class="${cls}">${num.toString().padStart(2, '0')}</span>`;
+                    }).join(', ');
+
+                    html += `<td>
+                        <div class="mode-line">${p1Html || '---'}</div>
+                        <div class="mode-line">${p2Html || '---'}</div>
+                    </td>`;
                 }
 
+                // 命中率欄位
                 if (!isFuture) {
-                    const allPreds = [...new Set([...p1Row.flat(), ...p2Row.flat()])];
-                    totalHits = actual.filter(n => allPreds.includes(n)).length;
-                    html += `<td><span class="rate-tag">${(totalHits/5*100).toFixed(0)}%</span></td>`;
+                    const uniqueHits = [...new Set(matchedInRow)].length;
+                    html += `<td><span class="rate-tag">${(uniqueHits/5*100).toFixed(0)}%</span></td>`;
                 } else {
                     html += `<td>---</td>`;
                 }
