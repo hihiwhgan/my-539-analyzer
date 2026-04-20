@@ -74,16 +74,20 @@
         let mode2Backtests = {}; // 儲存模式2每一期的預測
 
         async function loadData() {
-            const response = await fetch('/api/data');
-            const data = await response.json();
-            allHistoryData = data;
-            
-            const matrix1 = calculateMatrix(data, 1);
-            const matrix2 = calculateMatrix(data, 2);
-
-            renderMainTable(data, matrix1, 1);
-            renderMainTable(data, matrix2, 2);
-            renderMergedTable(data, matrix1, matrix2);
+            try {
+                const response = await fetch('./data.json?t=' + new Date().getTime()); 
+                const data = await response.json();
+                allHistoryData = data;
+                
+                const matrix1 = calculateMatrix(data, 1);
+                const matrix2 = calculateMatrix(data, 2);
+    
+                renderMainTable(data, matrix1, 1);
+                renderMainTable(data, matrix2, 2);
+                renderMergedTable(data, matrix1, matrix2);
+            } catch (err) {
+        console.error("載入 data.json 失敗:", err);
+    }
         }
 
         function calculateMatrix(data, type) {
