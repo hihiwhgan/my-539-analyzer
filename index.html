@@ -2,10 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>539 智慧分析 - 深度回測統計終端</title>
+    <title>539 智慧分析 - 20期深度回測系統</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #444; }
-        .container { max-width: 1550px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); margin-bottom: 30px; }
+        .container { max-width: 1580px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); margin-bottom: 30px; }
         h1 { text-align: center; color: #555; margin-bottom: 20px; }
         
         /* 色塊說明 (圖例) */
@@ -88,14 +88,14 @@
             <tbody id="tbody2"></tbody>
         </table>
 
-        <h2>📊 十期雙模式分層回測與全集對照</h2>
+        <h2>📊 二十期雙模式分層回測與去重全集</h2>
         <table id="table-merged">
             <thead>
                 <tr>
                     <th style="width: 110px;">期別/模式</th>
                     <th style="width: 155px;">當期獎號</th>
                     <th>位置 01 預測</th><th>位置 02 預測</th><th>位置 03 預測</th><th>位置 04 預測</th><th>位置 05 預測</th>
-                    <th style="width: 250px;">全期預測號碼集合 (不重複)</th>
+                    <th style="width: 280px;">全期預測號碼集合 (去重+排序)</th>
                 </tr>
             </thead>
             <tbody id="tbody-merged"></tbody>
@@ -109,13 +109,15 @@
         const pad = (n) => n.toString().padStart(2, '0');
 
         async function loadData() {
-            const response = await fetch('./data.json?t=' + new Date().getTime()); 
-            const data = await response.json();
-            const matrix1 = calculateMatrix(data, 1);
-            const matrix2 = calculateMatrix(data, 2);
-            renderMainTable(data, matrix1, 1);
-            renderMainTable(data, matrix2, 2);
-            renderMergedTable(data);
+            try {
+                const response = await fetch('./data.json?t=' + new Date().getTime()); 
+                const data = await response.json();
+                const matrix1 = calculateMatrix(data, 1);
+                const matrix2 = calculateMatrix(data, 2);
+                renderMainTable(data, matrix1, 1);
+                renderMainTable(data, matrix2, 2);
+                renderMergedTable(data);
+            } catch (err) { console.error("數據載入失敗:", err); }
         }
 
         function calculateMatrix(data, type) {
@@ -135,6 +137,7 @@
 
         function renderMainTable(data, matrix, type) {
             const tbody = document.getElementById('tbody' + type);
+            tbody.innerHTML = '';
             data.forEach((item, i) => {
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${pad(n)}</span>`).join(' ');
@@ -151,9 +154,9 @@
                 row.innerHTML = html; tbody.appendChild(row);
             });
 
-            // 靜默計算 10 期回測數據
+            // 靜默計算 20 期回測數據
             const total = data.length;
-            for (let offset = 10; offset >= 0; offset--) {
+            for (let offset = 20; offset >= 0; offset--) { // 修改為 20 期
                 const targetIdx = total - offset;
                 if (targetIdx >= total && offset !== 0) continue;
                 const isFuture = (offset === 0);
@@ -184,10 +187,10 @@
             tbody.innerHTML = ''; tfoot.innerHTML = '';
             
             const total = data.length;
-            let colHitStats = [0, 0, 0, 0, 0]; // 追蹤五個位置的累計命中次數
+            let colHitStats = [0, 0, 0, 0, 0]; 
             let validBacktestCount = 0;
 
-            for (let offset = 10; offset >= 0; offset--) {
+            for (let offset = 20; offset >= 0; offset--) { // 修改為 20 期
                 const targetIdx = total - offset;
                 const isFuture = (offset === 0);
                 if (!isFuture && targetIdx >= total) continue;
@@ -204,7 +207,7 @@
                 let html = `<td class="period-cell">${period}<br><span class="mode-label">M1</span><br><span class="mode-label">M2</span></td>`;
                 html += `<td>${isFuture ? "待開獎" : data[targetIdx].nums.map(n => `<span class="ball">${pad(n)}</span>`).join(' ')}</td>`;
                 
-                let rowUnionMap = {}; // 存儲該期所有不重複預測號碼及其來源
+                let rowUnionMap = {}; 
 
                 for (let c = 0; c < 5; c++) {
                     const p1 = p1Row[c]; const p2 = p2Row[c];
@@ -214,28 +217,29 @@
                     const isColHit = !isFuture && (p1.some(n => actual.includes(n)) || p2.some(n => actual.includes(n)));
                     if (isColHit) colHitStats[c]++;
 
-                    const renderLine = (preds, other) => preds.map(num => {
+                    const renderSortedLine = (preds, other) => preds.sort((a,b)=>a-b).map(num => {
                         const isHit = !isFuture && actual.includes(num);
                         const isBoth = other.includes(num);
                         return `<span class="${isHit ? (isBoth ? 'hit-both' : 'hit-single') : ''}">${pad(num)}</span>`;
                     }).join(', ');
 
-                    html += `<td><div class="mode-line">${renderLine(p1, p2) || '---'}</div><div class="mode-line">${renderLine(p2, p1) || '---'}</div></td>`;
+                    html += `<td><div class="mode-line">${renderSortedLine([...p1], p2) || '---'}</div><div class="mode-line">${renderSortedLine([...p2], p1) || '---'}</div></td>`;
                 }
 
-                // 右側不重複集合欄位
-                let setHtml = Object.keys(rowUnionMap).sort((a,b)=>a-b).map(num => {
+                // 號碼集合 (去重 + 排序)
+                let sortedUniqueNums = Object.keys(rowUnionMap).map(Number).sort((a, b) => a - b);
+                let setHtml = sortedUniqueNums.map(num => {
                     const src = rowUnionMap[num];
                     const cls = src === 3 ? "src-both" : (src === 1 ? "src-m1" : "src-m2");
                     return `<span class="set-tag ${cls}">${pad(num)}</span>`;
                 }).join('');
+
                 html += `<td style="text-align:left; padding:5px;">${setHtml}</td>`;
-                
                 row.innerHTML = html;
                 tbody.appendChild(row);
             }
 
-            // 底部累計命中率列
+            // 底部累計統計
             const statRow = document.createElement('tr');
             statRow.className = 'stat-row';
             let statHtml = `<td colspan="2">📈 位置累計命中率 (近 ${validBacktestCount} 期)</td>`;
@@ -243,7 +247,7 @@
                 const rate = ((hits / validBacktestCount) * 100).toFixed(0);
                 statHtml += `<td>命中: ${hits} 期<br>(${rate}%)</td>`;
             });
-            statHtml += `<td>(綜合參考值)</td>`;
+            statHtml += `<td>(歷史 20 期統計)</td>`;
             statRow.innerHTML = statHtml;
             tfoot.appendChild(statRow);
         }
