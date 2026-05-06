@@ -42,10 +42,14 @@
         #table-merged td { border: 1px solid #e2e8f0; font-size: 0.95em; }
         .period-cell { background: #f8fafc; font-weight: bold; font-size: 0.9em; padding: 10px 5px !important; }
         
+        /* 預測格子內的小字 (中獎數/預測個數) */
+        .hit-count-label { font-size: 0.8em; font-weight: normal; color: #888; margin-left: 4px; }
+        
         /* 底部統計列 */
         .stat-row { background-color: #334155 !important; color: #cbd5e1 !important; font-weight: bold; }
         .stat-row td { border: 1px solid #475569 !important; padding: 15px 5px; }
-        .stat-title { color: #cbd5e1; font-weight: normal; font-size: 0.9em; } /* 淺色統計標題 */
+        .stat-title { color: #cbd5e1; font-weight: normal; font-size: 0.9em; }
+        .stat-rate { color: #94a3b8; font-weight: normal; font-size: 0.95em; } /* 1. 命中率顏色變淺 */
     </style>
 </head>
 <body>
@@ -195,10 +199,10 @@
                 
                 for (let c = 0; c < 5; c++) {
                     const p1 = p1Row[c]; const p2 = p2Row[c];
-                    // 合併 M1、M2 並排序
                     const combined = [...new Set([...p1, ...p2])].sort((a, b) => a - b);
                     
-                    const isColHit = !isFuture && combined.some(n => actual.includes(n));
+                    const hitNums = combined.filter(n => !isFuture && actual.includes(n));
+                    const isColHit = hitNums.length > 0;
                     if (isColHit) colHitStats[c]++;
 
                     const cellHtml = combined.map(num => {
@@ -208,7 +212,10 @@
                         return `<span class="${cls}">${pad(num)}</span>`;
                     }).join(', ');
 
-                    html += `<td>${cellHtml || '---'}</td>`;
+                    // 2. 在預測號碼最後面加上 (中獎數/預測個數)
+                    const label = !isFuture ? `<span class="hit-count-label">(${hitNums.length}/${combined.length})</span>` : '';
+
+                    html += `<td>${cellHtml || '---'}${label}</td>`;
                 }
                 row.innerHTML = html; tbody.appendChild(row);
             }
@@ -218,7 +225,8 @@
             let statHtml = `<td colspan="2"><span class="stat-title">📈 位置累計命中率 (近 ${validBacktestCount} 期)</span></td>`;
             colHitStats.forEach(hits => {
                 const rate = ((hits / validBacktestCount) * 100).toFixed(0);
-                statHtml += `<td>命中: ${hits} 期<br>(${rate}%)</td>`;
+                // 1. 下面命中率字體顏色變淺 (使用 stat-rate class)
+                statHtml += `<td><span class="stat-rate">命中: ${hits} 期<br>(${rate}%)</span></td>`;
             });
             statRow.innerHTML = statHtml;
             tfoot.appendChild(statRow);
