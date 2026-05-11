@@ -1,16 +1,16 @@
 <script>
-    // ... (calculateMatrix 保持不變)
+    // 保持 pad, calculateMatrix 等函式不變...
 
     function renderMainTable(data, matrix, type) {
         const tbody = document.getElementById('tbody' + type);
         tbody.innerHTML = '';
         data.forEach((item, i) => {
-            // ... (渲染基礎表格內容)
+            // ... (渲染基礎開獎紀錄)
         });
 
         const total = data.length;
-        // 修改點：迴圈從 20 改為 40
-        for (let offset = 40; offset >= 0; offset--) {
+        // 修正點：改回 20 期
+        for (let offset = 20; offset >= 0; offset--) {
             const targetIdx = total - offset;
             if (targetIdx >= total && offset !== 0) continue;
             const isFuture = (offset === 0);
@@ -18,7 +18,6 @@
             let predsForThisPeriod = [];
             
             for (let c=0; c<5; c++) {
-                // 滑動視窗保持 20 期，以維持預測邏輯的靈敏度
                 let start = Math.max(1, (isFuture ? total : targetIdx) - 20);
                 let end = isFuture ? total : targetIdx;
                 let counts = {};
@@ -47,8 +46,8 @@
         let colHitStats = [0, 0, 0, 0, 0]; 
         let validBacktestCount = 0;
 
-        // 修改點：回測對照表顯示 40 期
-        for (let offset = 40; offset >= 0; offset--) {
+        // 修正點：合併表也改回顯示 20 期
+        for (let offset = 20; offset >= 0; offset--) {
             const targetIdx = total - offset;
             const isFuture = (offset === 0);
             if (!isFuture && targetIdx >= total) continue;
@@ -85,7 +84,6 @@
             row.innerHTML = html; tbody.appendChild(row);
         }
 
-        // 修改點：更新統計標註為 40 期
         const statRow = document.createElement('tr');
         statRow.className = 'stat-row';
         let statHtml = `<td colspan="2"><span class="stat-title">📈 位置累計命中率 (近 ${validBacktestCount} 期)</span></td>`;
