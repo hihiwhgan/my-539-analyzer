@@ -31,7 +31,7 @@ def fetch_and_save():
                     if len(nums) == 5:
                         data_list.append({"period": display_date, "nums": nums})
             
-            if len(data_list) >= 70: break
+            if len(data_list) >= 35: break
 
         # 轉成由舊到新
         final_data = data_list[::-1]
