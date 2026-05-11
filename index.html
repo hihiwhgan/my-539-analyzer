@@ -147,7 +147,7 @@
             });
 
             const total = data.length;
-            for (let offset = 20; offset >= 0; offset--) {
+            for (let offset = 30; offset >= 0; offset--) {
                 const targetIdx = total - offset;
                 if (targetIdx >= total && offset !== 0) continue;
                 const isFuture = (offset === 0);
@@ -180,7 +180,7 @@
             let colHitStats = [0, 0, 0, 0, 0]; 
             let validBacktestCount = 0;
 
-            for (let offset = 20; offset >= 0; offset--) {
+            for (let offset = 30; offset >= 0; offset--) {
                 const targetIdx = total - offset;
                 const isFuture = (offset === 0);
                 if (!isFuture && targetIdx >= total) continue;
