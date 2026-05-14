@@ -6,7 +6,7 @@
     <style>
         /* 基礎版面配置 */
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #444; }
-        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); margin-bottom: 30px; }
+        .container { max-width: 1450px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); margin-bottom: 30px; }
         h1 { text-align: center; color: #555; margin-bottom: 20px; }
         
         /* 色塊說明圖例 */
@@ -22,11 +22,14 @@
         .bg-green { background-color: #A3B18A; color: white !important; }
         .bg-purple { background-color: #957DAD; color: white !important; }
 
-        /* 命中與標示顏色 */
-        .hit-single { color: #0000FF !important; text-decoration: underline; font-weight: 900; } 
-        .hit-both { color: #FF0000 !important; text-decoration: underline; font-weight: 900; border: 1px solid #FF0000; padding: 0 1px; } 
-        /* 新增：未中獎但為共識碼的方外框樣式 */
-        .consensus { border: 1px solid #444; padding: 0 1px; font-weight: 900; }
+        /* 標示顏色：回歸一般處理 */
+        .hit-num { color: #0000FF !important; text-decoration: underline; font-weight: 900; } 
+
+        /* 重複號碼綠色系標記 (依次數加深) */
+        .dup-2 { background-color: #f0fdf4; border-radius: 4px; padding: 0 2px; } /* 出現 2 次 */
+        .dup-3 { background-color: #dcfce7; border-radius: 4px; padding: 0 2px; } /* 出現 3 次 */
+        .dup-4 { background-color: #bbf7d0; border-radius: 4px; padding: 0 2px; } /* 出現 4 次 */
+        .dup-5 { background-color: #86efac; border-radius: 4px; padding: 0 2px; } /* 出現 5 次以上 */
 
         /* 表格通用樣式 */
         h2 { border-left: 6px solid #8E9AAF; padding-left: 12px; color: #555; font-size: 1.15em; margin-top: 40px; }
@@ -40,15 +43,13 @@
         .predict-row { background-color: #fffbeb !important; }
         .diff-col { background-color: #fafafa; border-left: 1px solid #eee !important; }
 
-        /* 合併回測表專屬樣式 */
+        /* 合併回測表專屬 */
         #table-merged th { background: #1e293b; color: #fff; }
         #table-merged td { border: 1px solid #e2e8f0; font-size: 0.95em; }
         .period-cell { background: #f8fafc; font-weight: bold; font-size: 0.9em; padding: 10px 5px !important; }
         
-        /* 命中數值標籤 */
         .hit-count-label { font-size: 0.8em; font-weight: normal; color: #888; margin-left: 4px; }
         
-        /* 底部統計列樣式 */
         .stat-row { background-color: #334155 !important; color: #cbd5e1 !important; font-weight: bold; }
         .stat-row td { border: 1px solid #475569 !important; padding: 15px 5px; }
         .stat-title { color: #cbd5e1; font-weight: normal; font-size: 0.9em; }
@@ -68,8 +69,7 @@
             <div class="legend-group">
                 <span class="label-text">號碼標示:</span>
                 <span style="color:#0000FF; text-decoration:underline;">藍(中獎)</span>
-                <span style="color:#FF0000; text-decoration:underline; border:1px solid #FF0000; padding:0 2px;">紅(共識+中獎)</span>
-                <span style="border:1px solid #444; padding:0 2px;">框(共識碼)</span>
+                <span style="background-color:#dcfce7; padding:0 4px; border-radius:4px;">綠色(跨位置重複預測)</span>
             </div>
         </div>
 
@@ -195,6 +195,14 @@
                 const p1Row = mode1Backtests[period];
                 const p2Row = mode2Backtests[period];
 
+                // 1. 先蒐集本期所有位置的預測號碼，統計出現頻率
+                let allNumsInRow = [];
+                for (let c = 0; c < 5; c++) {
+                    allNumsInRow.push(...new Set([...p1Row[c], ...p2Row[c]]));
+                }
+                let counts = {};
+                allNumsInRow.forEach(n => counts[n] = (counts[n] || 0) + 1);
+
                 const row = document.createElement('tr');
                 if (isFuture) row.className = 'predict-row';
 
@@ -210,20 +218,14 @@
 
                     const cellHtml = combined.map(num => {
                         const isHit = !isFuture && actual.includes(num);
-                        const isBoth = p1.includes(num) && p2.includes(num);
+                        const dupCount = counts[num] || 1;
                         
-                        // 判定邏輯優化：
-                        // 1. 同時中獎且為共識碼 -> hit-both (紅字+外框)
-                        // 2. 僅中獎 -> hit-single (藍字)
-                        // 3. 僅共識碼 -> consensus (黑外框)
-                        let cls = '';
-                        if (isHit) {
-                            cls = isBoth ? 'hit-both' : 'hit-single';
-                        } else if (isBoth) {
-                            cls = 'consensus';
-                        }
+                        // 判定 Class
+                        let classes = [];
+                        if (isHit) classes.push('hit-num'); // 中獎藍字
+                        if (dupCount >= 2) classes.push('dup-' + Math.min(dupCount, 5)); // 重複標記背景
                         
-                        return `<span class="${cls}">${pad(num)}</span>`;
+                        return `<span class="${classes.join(' ')}">${pad(num)}</span>`;
                     }).join(', ');
 
                     const label = isFuture 
