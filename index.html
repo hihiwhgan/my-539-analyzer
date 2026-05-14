@@ -22,9 +22,11 @@
         .bg-green { background-color: #A3B18A; color: white !important; }
         .bg-purple { background-color: #957DAD; color: white !important; }
 
-        /* 命中標示顏色 */
+        /* 命中與標示顏色 */
         .hit-single { color: #0000FF !important; text-decoration: underline; font-weight: 900; } 
         .hit-both { color: #FF0000 !important; text-decoration: underline; font-weight: 900; border: 1px solid #FF0000; padding: 0 1px; } 
+        /* 新增：未中獎但為共識碼的方外框樣式 */
+        .consensus { border: 1px solid #444; padding: 0 1px; font-weight: 900; }
 
         /* 表格通用樣式 */
         h2 { border-left: 6px solid #8E9AAF; padding-left: 12px; color: #555; font-size: 1.15em; margin-top: 40px; }
@@ -64,9 +66,10 @@
                 <span class="legend-box bg-blue"></span> 連莊 <span class="legend-box bg-yellow"></span> 隔1 <span class="legend-box bg-green"></span> 隔2 <span class="legend-box bg-purple"></span> 隔3
             </div>
             <div class="legend-group">
-                <span class="label-text">命中標示:</span>
-                <span style="color:#0000FF; text-decoration:underline; font-weight:bold;">藍(單模)</span>
-                <span style="color:#FF0000; text-decoration:underline; border:1px solid #FF0000; padding:0 2px;">紅(雙模)</span>
+                <span class="label-text">號碼標示:</span>
+                <span style="color:#0000FF; text-decoration:underline;">藍(中獎)</span>
+                <span style="color:#FF0000; text-decoration:underline; border:1px solid #FF0000; padding:0 2px;">紅(共識+中獎)</span>
+                <span style="border:1px solid #444; padding:0 2px;">框(共識碼)</span>
             </div>
         </div>
 
@@ -113,7 +116,6 @@
             } catch (err) { console.error("數據載入失敗:", err); }
         }
 
-        // 計算差值矩陣
         function calculateMatrix(data, type) {
             const matrix = [];
             for (let i = 0; i < data.length; i++) {
@@ -129,7 +131,6 @@
             return matrix;
         }
 
-        // 渲染主分析表並計算回測資料
         function renderMainTable(data, matrix, type) {
             const tbody = document.getElementById('tbody' + type);
             tbody.innerHTML = '';
@@ -175,7 +176,6 @@
             }
         }
 
-        // 渲染合併回測表與統計數據
         function renderMergedTable(data) {
             const tbody = document.getElementById('tbody-merged');
             const tfoot = document.getElementById('tfoot-merged');
@@ -211,11 +211,21 @@
                     const cellHtml = combined.map(num => {
                         const isHit = !isFuture && actual.includes(num);
                         const isBoth = p1.includes(num) && p2.includes(num);
-                        let cls = isHit ? (isBoth ? 'hit-both' : 'hit-single') : '';
+                        
+                        // 判定邏輯優化：
+                        // 1. 同時中獎且為共識碼 -> hit-both (紅字+外框)
+                        // 2. 僅中獎 -> hit-single (藍字)
+                        // 3. 僅共識碼 -> consensus (黑外框)
+                        let cls = '';
+                        if (isHit) {
+                            cls = isBoth ? 'hit-both' : 'hit-single';
+                        } else if (isBoth) {
+                            cls = 'consensus';
+                        }
+                        
                         return `<span class="${cls}">${pad(num)}</span>`;
                     }).join(', ');
 
-                    // 標籤邏輯：待開獎區顯示 (個數)，歷史區顯示 (中獎/預測總數)
                     const label = isFuture 
                         ? `<span class="hit-count-label">(${combined.length})</span>`
                         : `<span class="hit-count-label">(${hitNums.length}/${combined.length})</span>`;
@@ -225,7 +235,6 @@
                 row.innerHTML = html; tbody.appendChild(row);
             }
 
-            // 渲染底部統計列
             const statRow = document.createElement('tr');
             statRow.className = 'stat-row';
             let statHtml = `<td colspan="2"><span class="stat-title">📈 位置累計命中率 (近 ${validBacktestCount} 期)</span></td>`;
