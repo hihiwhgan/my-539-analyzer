@@ -2,13 +2,20 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>今彩 539 - 5柱立柱損益與回測分析</title>
+    <title>今彩 539 - 自選立柱損益與回測分析</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #333; }
         .container { max-width: 1550px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
         h1 { text-align: center; color: #333; margin-bottom: 10px; }
-        .nav-bar { text-align: center; margin-bottom: 25px; }
+        .nav-bar { text-align: center; margin-bottom: 20px; }
         .nav-bar a { display: inline-block; padding: 8px 18px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
+        
+        /* 篩選控制器 */
+        .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; font-size: 0.95em; }
+        .filter-title { font-weight: bold; color: #1e293b; }
+        .checkbox-group { display: flex; gap: 12px; align-items: center; }
+        .checkbox-item { cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; }
+
         .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
         .card .title { font-size: 0.85em; color: #64748b; margin-bottom: 6px; }
@@ -22,18 +29,32 @@
         .ball { display: inline-block; width: 22px; height: 22px; line-height: 22px; background: #b8978e; color: white; border-radius: 50%; font-size: 0.8em; }
         .predict-row { background-color: #fffbeb !important; }
         .hit-cell { background-color: #fef2f2; color: #dc2626; }
+        .col-disabled { background-color: #e2e8f0 !important; color: #94a3b8 !important; text-decoration: line-through; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>5 柱立柱損益與回測計算機 (去重與加權配置)</h1>
+        <h1>自選立柱損益與回測計算機</h1>
         <div class="nav-bar">
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
 
+        <!-- 欄位動態選擇面板 -->
+        <div class="filter-panel">
+            <span class="filter-title">📌 選擇立柱參與位置：</span>
+            <div class="checkbox-group">
+                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="0" checked> 位置 01</label>
+                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="1" checked> 位置 02</label>
+                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="2" checked> 位置 03</label>
+                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="3" checked> 位置 04</label>
+                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="4" checked> 位置 05</label>
+            </div>
+            <span style="font-size: 0.85em; color: #64748b;">(勾選即時重新計算碰數與損益)</span>
+        </div>
+
         <div class="summary-cards">
             <div class="card"><div class="title">單注成本 / 下注口數</div><div class="val">75 元 (2星×6口, 3/4星×1口)</div></div>
-            <div class="card"><div class="title">二星 / 三星 / 四星 單碰單口獎金</div><div class="val">5,300 / 57,000 / 750,000</div></div>
+            <div class="card"><div class="title">參與立柱數</div><div class="val" id="active-pillars-count">5 柱</div></div>
             <div class="card"><div class="title">回測總投入成本</div><div class="val" id="sum-cost">0 元</div></div>
             <div class="card"><div class="title">回測總中獎金額</div><div class="val" id="sum-prize">0 元</div></div>
             <div class="card"><div class="title">回測累積淨損益</div><div class="val" id="sum-profit">0 元</div></div>
@@ -68,18 +89,24 @@
         const PRIZE_3 = 57000;
         const PRIZE_4 = 750000;
         
-        // 投注口數設定
         const MULT_2 = 6;
         const MULT_3 = 1;
         const MULT_4 = 1;
 
+        let globalData = null;
         const pad = (n) => n.toString().padStart(2, '0');
 
-        async function loadData() {
+        async function init() {
             try {
                 const res = await fetch('./data.json?t=' + new Date().getTime());
-                const data = await res.json();
-                runSimulation(data);
+                globalData = await res.json();
+                
+                // 監聽 Checkbox 變更
+                document.querySelectorAll('.col-toggle').forEach(el => {
+                    el.addEventListener('change', () => runSimulation(globalData));
+                });
+
+                runSimulation(globalData);
             } catch (e) {
                 console.error("資料載入失敗:", e);
             }
@@ -146,7 +173,7 @@
                     rawCols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
                 }
 
-                // 跨柱去重邏輯：號碼僅保留在最早出現的柱位 (由柱01往柱05檢查)
+                // 依序去重（保留最早出現的柱位）
                 const seenNumbers = new Set();
                 const dedupCols = [];
                 for (let c = 0; c < 5; c++) {
@@ -159,7 +186,6 @@
                     }
                     dedupCols.push(filtered);
                 }
-
                 preds[periodKey] = dedupCols;
             }
             return preds;
@@ -167,6 +193,7 @@
 
         function getPillarCombinations(counts, k) {
             const len = counts.length;
+            if (len < k) return 0;
             let total = 0;
             function backtrack(start, depth, currentProduct) {
                 if (depth === k) { total += currentProduct; return; }
@@ -186,6 +213,10 @@
         };
 
         function runSimulation(data) {
+            // 讀取被勾選的位置索引
+            const checkedCols = Array.from(document.querySelectorAll('.col-toggle:checked')).map(el => parseInt(el.value));
+            document.getElementById('active-pillars-count').textContent = `${checkedCols.length} 柱`;
+
             const m1 = calculateMatrix(data, 1);
             const m2 = calculateMatrix(data, 2);
             const preds = getPredictions(data, m1, m2);
@@ -204,24 +235,24 @@
 
                 const period = isFuture ? "NEXT" : data[targetIdx].period;
                 const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
-                const cols = preds[period];
+                const allCols = preds[period];
 
-                // 計算每柱剩餘號碼數與基礎碰數
-                const colCounts = cols.map(c => c.length);
-                const p2Comb = getPillarCombinations(colCounts, 2);
-                const p3Comb = getPillarCombinations(colCounts, 3);
-                const p4Comb = getPillarCombinations(colCounts, 4);
+                // 只挑選已勾選的柱位進行立柱
+                const activeCols = checkedCols.map(idx => allCols[idx]);
+                const activeColCounts = activeCols.map(c => c.length);
 
-                // 套用下注口數加權
+                const p2Comb = getPillarCombinations(activeColCounts, 2);
+                const p3Comb = getPillarCombinations(activeColCounts, 3);
+                const p4Comb = getPillarCombinations(activeColCounts, 4);
+
                 const totalBets = (p2Comb * MULT_2) + (p3Comb * MULT_3) + (p4Comb * MULT_4);
                 const cost = totalBets * COST_PER_BET;
 
-                // 命中柱數統計
+                // 統計選中柱位中的命中柱數
                 let hitPillars = 0;
-                const colHits = cols.map(col => {
+                activeCols.forEach(col => {
                     const hits = col.filter(n => !isFuture && actual.includes(n));
                     if (hits.length > 0) hitPillars++;
-                    return hits;
                 });
 
                 let win2 = 0, win3 = 0, win4 = 0, prize = 0, profit = 0;
@@ -230,7 +261,6 @@
                     win3 = comb(hitPillars, 3);
                     win4 = comb(hitPillars, 4);
 
-                    // 獎金隨口數加成
                     prize = (win2 * MULT_2 * PRIZE_2) + (win3 * MULT_3 * PRIZE_3) + (win4 * MULT_4 * PRIZE_4);
                     profit = prize - cost;
 
@@ -243,14 +273,23 @@
 
                 let colsHtml = '';
                 for (let c = 0; c < 5; c++) {
-                    const text = cols[c].length > 0 
-                        ? cols[c].map(n => {
+                    const isChecked = checkedCols.includes(c);
+                    const colNums = allCols[c];
+                    
+                    if (!isChecked) {
+                        colsHtml += `<td class="col-disabled">未選取</td>`;
+                        continue;
+                    }
+
+                    const hits = colNums.filter(n => !isFuture && actual.includes(n));
+                    const text = colNums.length > 0 
+                        ? colNums.map(n => {
                             const hit = !isFuture && actual.includes(n);
                             return hit ? `<span style="color:#dc2626; text-decoration:underline;">${pad(n)}</span>` : pad(n);
                         }).join(', ')
                         : '<span style="color:#94a3b8;">空柱</span>';
-                    const isHitCol = !isFuture && colHits[c].length > 0;
-                    colsHtml += `<td class="${isHitCol ? 'hit-cell' : ''}">${text}</td>`;
+                    
+                    colsHtml += `<td class="${(!isFuture && hits.length > 0) ? 'hit-cell' : ''}">${text}</td>`;
                 }
 
                 const profitClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
@@ -279,7 +318,7 @@
             sumProfitEl.className = `val ${netProfit >= 0 ? 'profit-pos' : 'profit-neg'}`;
         }
 
-        loadData();
+        init();
     </script>
 </body>
 </html>
