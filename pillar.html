@@ -5,16 +5,21 @@
     <title>今彩 539 - 自選立柱損益與回測分析</title>
     <style>
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #333; }
-        .container { max-width: 1550px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+        .container { max-width: 1600px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
         h1 { text-align: center; color: #333; margin-bottom: 10px; }
         .nav-bar { text-align: center; margin-bottom: 20px; }
         .nav-bar a { display: inline-block; padding: 8px 18px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
         
-        /* 篩選控制器 */
-        .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; font-size: 0.95em; }
+        /* 篩選與參數設定面板 */
+        .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; font-size: 0.95em; }
+        .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; }
         .filter-title { font-weight: bold; color: #1e293b; }
         .checkbox-group { display: flex; gap: 12px; align-items: center; }
         .checkbox-item { cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; }
+        
+        .param-group { display: flex; align-items: center; gap: 15px; }
+        .param-item { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+        .param-input { width: 55px; padding: 4px 6px; text-align: center; font-size: 1em; font-weight: bold; border: 1px solid #94a3b8; border-radius: 4px; }
 
         .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
@@ -39,21 +44,40 @@
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
 
-        <!-- 欄位動態選擇面板 -->
+        <!-- 參數與位置控制面板 -->
         <div class="filter-panel">
-            <span class="filter-title">📌 選擇立柱參與位置：</span>
-            <div class="checkbox-group">
-                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="0" checked> 位置 01</label>
-                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="1" checked> 位置 02</label>
-                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="2" checked> 位置 03</label>
-                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="3" checked> 位置 04</label>
-                <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="4" checked> 位置 05</label>
+            <div class="filter-row">
+                <span class="filter-title">📌 選擇立柱參與位置：</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="0" checked> 位置 01</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="1" checked> 位置 02</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="2" checked> 位置 03</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="3" checked> 位置 04</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="4" checked> 位置 05</label>
+                </div>
             </div>
-            <span style="font-size: 0.85em; color: #64748b;">(勾選即時重新計算碰數與損益)</span>
+            
+            <div class="filter-row">
+                <span class="filter-title">✂️ 號碼精簡過濾：</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" id="trim-head"> 剔除每柱最小號（頭號）</label>
+                    <label class="checkbox-item"><input type="checkbox" id="trim-tail"> 剔除每柱最大號（尾號）</label>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-title">⚙️ 下注加權口數設定：</span>
+                <div class="param-group">
+                    <label class="param-item">二星: <input type="number" id="mult-2" class="param-input" value="6" min="0" step="1"> 口</label>
+                    <label class="param-item">三星: <input type="number" id="mult-3" class="param-input" value="1" min="0" step="1"> 口</label>
+                    <label class="param-item">四星: <input type="number" id="mult-4" class="param-input" value="1" min="0" step="1"> 口</label>
+                </div>
+                <span style="font-size: 0.85em; color: #64748b;">(數值可設為 0，代表不投注該星數)</span>
+            </div>
         </div>
 
         <div class="summary-cards">
-            <div class="card"><div class="title">單注成本 / 下注口數</div><div class="val">75 元 (2星×6口, 3/4星×1口)</div></div>
+            <div class="card"><div class="title">單注成本 / 當前倍率</div><div class="val" id="config-summary">75 元 (2星×6, 3星×1, 4星×1)</div></div>
             <div class="card"><div class="title">參與立柱數</div><div class="val" id="active-pillars-count">5 柱</div></div>
             <div class="card"><div class="title">回測總投入成本</div><div class="val" id="sum-cost">0 元</div></div>
             <div class="card"><div class="title">回測總中獎金額</div><div class="val" id="sum-prize">0 元</div></div>
@@ -88,10 +112,6 @@
         const PRIZE_2 = 5300;
         const PRIZE_3 = 57000;
         const PRIZE_4 = 750000;
-        
-        const MULT_2 = 6;
-        const MULT_3 = 1;
-        const MULT_4 = 1;
 
         let globalData = null;
         const pad = (n) => n.toString().padStart(2, '0');
@@ -101,9 +121,18 @@
                 const res = await fetch('./data.json?t=' + new Date().getTime());
                 globalData = await res.json();
                 
-                // 監聽 Checkbox 變更
+                // 監聽位置 Checkbox 變更
                 document.querySelectorAll('.col-toggle').forEach(el => {
                     el.addEventListener('change', () => runSimulation(globalData));
+                });
+
+                // 監聽頭尾號過濾 Checkbox
+                document.getElementById('trim-head').addEventListener('change', () => runSimulation(globalData));
+                document.getElementById('trim-tail').addEventListener('change', () => runSimulation(globalData));
+
+                // 監聽加權口數 Input 變更
+                ['mult-2', 'mult-3', 'mult-4'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => runSimulation(globalData));
                 });
 
                 runSimulation(globalData);
@@ -173,7 +202,7 @@
                     rawCols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
                 }
 
-                // 依序去重（保留最早出現的柱位）
+                // 跨柱去重邏輯：號碼僅保留在最早出現的柱位
                 const seenNumbers = new Set();
                 const dedupCols = [];
                 for (let c = 0; c < 5; c++) {
@@ -213,9 +242,17 @@
         };
 
         function runSimulation(data) {
-            // 讀取被勾選的位置索引
+            const mult2 = Math.max(0, parseInt(document.getElementById('mult-2').value) || 0);
+            const mult3 = Math.max(0, parseInt(document.getElementById('mult-3').value) || 0);
+            const mult4 = Math.max(0, parseInt(document.getElementById('mult-4').value) || 0);
+            
+            document.getElementById('config-summary').textContent = `75 元 (2星×${mult2}, 3星×${mult3}, 4星×${mult4})`;
+
             const checkedCols = Array.from(document.querySelectorAll('.col-toggle:checked')).map(el => parseInt(el.value));
             document.getElementById('active-pillars-count').textContent = `${checkedCols.length} 柱`;
+
+            const trimHead = document.getElementById('trim-head').checked;
+            const trimTail = document.getElementById('trim-tail').checked;
 
             const m1 = calculateMatrix(data, 1);
             const m2 = calculateMatrix(data, 2);
@@ -235,9 +272,20 @@
 
                 const period = isFuture ? "NEXT" : data[targetIdx].period;
                 const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
-                const allCols = preds[period];
+                const rawPeriodCols = preds[period];
 
-                // 只挑選已勾選的柱位進行立柱
+                // 套用頭尾號剔除邏輯
+                const allCols = rawPeriodCols.map(col => {
+                    let sorted = [...col].sort((a, b) => a - b);
+                    if (trimHead && sorted.length > 0) {
+                        sorted.shift(); // 剔除最小號
+                    }
+                    if (trimTail && sorted.length > 0) {
+                        sorted.pop(); // 剔除最大號
+                    }
+                    return sorted;
+                });
+
                 const activeCols = checkedCols.map(idx => allCols[idx]);
                 const activeColCounts = activeCols.map(c => c.length);
 
@@ -245,10 +293,9 @@
                 const p3Comb = getPillarCombinations(activeColCounts, 3);
                 const p4Comb = getPillarCombinations(activeColCounts, 4);
 
-                const totalBets = (p2Comb * MULT_2) + (p3Comb * MULT_3) + (p4Comb * MULT_4);
+                const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
                 const cost = totalBets * COST_PER_BET;
 
-                // 統計選中柱位中的命中柱數
                 let hitPillars = 0;
                 activeCols.forEach(col => {
                     const hits = col.filter(n => !isFuture && actual.includes(n));
@@ -261,7 +308,7 @@
                     win3 = comb(hitPillars, 3);
                     win4 = comb(hitPillars, 4);
 
-                    prize = (win2 * MULT_2 * PRIZE_2) + (win3 * MULT_3 * PRIZE_3) + (win4 * MULT_4 * PRIZE_4);
+                    prize = (win2 * mult2 * PRIZE_2) + (win3 * mult3 * PRIZE_3) + (win4 * mult4 * PRIZE_4);
                     profit = prize - cost;
 
                     grandCost += cost;
