@@ -61,6 +61,7 @@
                     <label class="checkbox-item"><input type="checkbox" id="trim-head"> 剔除每柱最小號（頭號）</label>
                     <label class="checkbox-item"><input type="checkbox" id="trim-tail"> 剔除每柱最大號（尾號）</label>
                 </div>
+                <span style="font-size: 0.85em; color: #64748b;">(重號優先權：[1,2]重號留2、[4,5]重號留4)</span>
             </div>
 
             <div class="filter-row">
@@ -197,18 +198,25 @@
                     rawCols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
                 }
 
+                // 客製去重規則：
+                // 位置 1,2 重號以 2 為主（先看 1、後看 0）
+                // 位置 4,5 重號以 4 為主（先看 3、後看 4）
+                // 優先順序陣列：位置 02(索引1) -> 位置 01(索引0) -> 位置 03(索引2) -> 位置 04(索引3) -> 位置 05(索引4)
+                const priorityOrder = [1, 0, 2, 3, 4];
                 const seenNumbers = new Set();
-                const dedupCols = [];
-                for (let c = 0; c < 5; c++) {
+                const dedupCols = [[], [], [], [], []];
+
+                for (const colIdx of priorityOrder) {
                     const filtered = [];
-                    for (const num of rawCols[c]) {
+                    for (const num of rawCols[colIdx]) {
                         if (!seenNumbers.has(num)) {
                             seenNumbers.add(num);
                             filtered.push(num);
                         }
                     }
-                    dedupCols.push(filtered);
+                    dedupCols[colIdx] = filtered;
                 }
+
                 preds[periodKey] = dedupCols;
             }
             return preds;
@@ -236,7 +244,6 @@
         };
 
         function runSimulation(data) {
-            // 解析為浮點數並固定至小數第一位
             const mult2 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10);
             const mult3 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-3').value) || 0) * 10) / 10);
             const mult4 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-4').value) || 0) * 10) / 10);
@@ -283,7 +290,6 @@
                 const p3Comb = getPillarCombinations(activeColCounts, 3);
                 const p4Comb = getPillarCombinations(activeColCounts, 4);
 
-                // 計算加權後總注數與成本（四捨五入至整數金額）
                 const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
                 const cost = Math.round(totalBets * COST_PER_BET);
 
