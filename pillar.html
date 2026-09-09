@@ -10,6 +10,23 @@
         .nav-bar { text-align: center; margin-bottom: 20px; }
         .nav-bar a { display: inline-block; padding: 8px 18px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
         
+        /* 獨立成本試算計算機 */
+        .calc-panel { background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .calc-panel h3 { margin: 0 0 15px 0; color: #38bdf8; font-size: 1.1em; display: flex; align-items: center; gap: 8px; }
+        .calc-grid { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; }
+        .pillar-inputs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .pillar-input-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; padding: 8px 12px; border-radius: 8px; border: 1px solid #334155; }
+        .pillar-input-box label { font-size: 0.8em; color: #94a3b8; margin-bottom: 4px; }
+        .pillar-input-box input { width: 50px; padding: 4px; text-align: center; font-size: 1.1em; font-weight: bold; background: #0f172a; border: 1px solid #475569; color: #38bdf8; border-radius: 4px; }
+        
+        .calc-result-boxes { display: flex; gap: 12px; flex-wrap: wrap; }
+        .res-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 90px; }
+        .res-box .res-label { font-size: 0.75em; color: #94a3b8; margin-bottom: 3px; }
+        .res-box .res-val { font-size: 1.15em; font-weight: bold; color: #f8fafc; }
+        .res-cost { border-color: #38bdf8; background: #0369a1; }
+        .res-cost .res-val { color: #fff; }
+
+        /* 篩選與參數設定面板 */
         .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; font-size: 0.95em; }
         .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; }
         .filter-title { font-weight: bold; color: #1e293b; }
@@ -43,9 +60,63 @@
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
 
+        <!-- 獨立立柱成本計算機 -->
+        <div class="calc-panel">
+            <h3>🧮 立柱碰數與成本即時試算機</h3>
+            <div class="calc-grid">
+                <div class="pillar-inputs">
+                    <span style="font-weight: bold; font-size: 0.9em; margin-right: 5px;">各柱號碼數：</span>
+                    <div class="pillar-input-box">
+                        <label>第 1 柱</label>
+                        <input type="number" id="calc-c1" value="6" min="0" max="39">
+                    </div>
+                    <div class="pillar-input-box">
+                        <label>第 2 柱</label>
+                        <input type="number" id="calc-c2" value="6" min="0" max="39">
+                    </div>
+                    <div class="pillar-input-box">
+                        <label>第 3 柱</label>
+                        <input type="number" id="calc-c3" value="6" min="0" max="39">
+                    </div>
+                    <div class="pillar-input-box">
+                        <label>第 4 柱</label>
+                        <input type="number" id="calc-c4" value="6" min="0" max="39">
+                    </div>
+                    <div class="pillar-input-box">
+                        <label>第 5 柱</label>
+                        <input type="number" id="calc-c5" value="6" min="0" max="39">
+                    </div>
+                </div>
+                
+                <div class="calc-result-boxes">
+                    <div class="res-box">
+                        <div class="res-label">二星碰數</div>
+                        <div class="res-val" id="calc-p2">0</div>
+                    </div>
+                    <div class="res-box">
+                        <div class="res-label">三星碰數</div>
+                        <div class="res-val" id="calc-p3">0</div>
+                    </div>
+                    <div class="res-box">
+                        <div class="res-label">四星碰數</div>
+                        <div class="res-val" id="calc-p4">0</div>
+                    </div>
+                    <div class="res-box">
+                        <div class="res-label">總注數(含加權)</div>
+                        <div class="res-val" id="calc-total-bets" style="color: #facc15;">0</div>
+                    </div>
+                    <div class="res-box res-cost">
+                        <div class="res-label" style="color: #e0f2fe;">總投注成本</div>
+                        <div class="res-val" id="calc-total-cost">0 元</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 參數與位置控制面板 -->
         <div class="filter-panel">
             <div class="filter-row">
-                <span class="filter-title">📌 選擇立柱參與位置：</span>
+                <span class="filter-title">📌 選擇回測立柱位置：</span>
                 <div class="checkbox-group">
                     <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="0" checked> 位置 01</label>
                     <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="1" checked> 位置 02</label>
@@ -77,7 +148,7 @@
 
         <div class="summary-cards">
             <div class="card"><div class="title">單注成本 / 當前倍率</div><div class="val" id="config-summary">75 元 (2星×6, 3星×1, 4星×1)</div></div>
-            <div class="card"><div class="title">參與立柱數</div><div class="val" id="active-pillars-count">5 柱</div></div>
+            <div class="card"><div class="title">回測立柱數</div><div class="val" id="active-pillars-count">5 柱</div></div>
             <div class="card"><div class="title">回測總投入成本</div><div class="val" id="sum-cost">0 元</div></div>
             <div class="card"><div class="title">回測總中獎金額</div><div class="val" id="sum-prize">0 元</div></div>
             <div class="card"><div class="title">回測累積淨損益</div><div class="val" id="sum-profit">0 元</div></div>
@@ -117,6 +188,11 @@
 
         async function init() {
             try {
+                // 綁定獨立成本計算機輸入事件
+                for (let i = 1; i <= 5; i++) {
+                    document.getElementById(`calc-c${i}`).addEventListener('input', updateStandaloneCalculator);
+                }
+
                 const res = await fetch('./data.json?t=' + new Date().getTime());
                 globalData = await res.json();
                 
@@ -128,13 +204,43 @@
                 document.getElementById('trim-tail').addEventListener('change', () => runSimulation(globalData));
 
                 ['mult-2', 'mult-3', 'mult-4'].forEach(id => {
-                    document.getElementById(id).addEventListener('input', () => runSimulation(globalData));
+                    document.getElementById(id).addEventListener('input', () => {
+                        updateStandaloneCalculator();
+                        runSimulation(globalData);
+                    });
                 });
 
+                updateStandaloneCalculator();
                 runSimulation(globalData);
             } catch (e) {
                 console.error("資料載入失敗:", e);
             }
+        }
+
+        // 獨立立柱碰數計算機運算邏輯
+        function updateStandaloneCalculator() {
+            const counts = [];
+            for (let i = 1; i <= 5; i++) {
+                const val = Math.max(0, parseInt(document.getElementById(`calc-c${i}`).value) || 0);
+                counts.push(val);
+            }
+
+            const mult2 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10);
+            const mult3 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-3').value) || 0) * 10) / 10);
+            const mult4 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-4').value) || 0) * 10) / 10);
+
+            const p2Comb = getPillarCombinations(counts, 2);
+            const p3Comb = getPillarCombinations(counts, 3);
+            const p4Comb = getPillarCombinations(counts, 4);
+
+            const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
+            const totalCost = Math.round(totalBets * COST_PER_BET);
+
+            document.getElementById('calc-p2').textContent = p2Comb.toLocaleString();
+            document.getElementById('calc-p3').textContent = p3Comb.toLocaleString();
+            document.getElementById('calc-p4').textContent = p4Comb.toLocaleString();
+            document.getElementById('calc-total-bets').textContent = totalBets.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1});
+            document.getElementById('calc-total-cost').textContent = totalCost.toLocaleString() + ' 元';
         }
 
         function calculateMatrix(data, type) {
@@ -198,10 +304,6 @@
                     rawCols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
                 }
 
-                // 客製去重規則：
-                // 位置 1,2 重號以 2 為主（先看 1、後看 0）
-                // 位置 4,5 重號以 4 為主（先看 3、後看 4）
-                // 優先順序陣列：位置 02(索引1) -> 位置 01(索引0) -> 位置 03(索引2) -> 位置 04(索引3) -> 位置 05(索引4)
                 const priorityOrder = [1, 0, 2, 3, 4];
                 const seenNumbers = new Set();
                 const dedupCols = [[], [], [], [], []];
