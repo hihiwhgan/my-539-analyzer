@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>今彩 539 - 5柱立柱損益與回測分析</title>
+    <style>
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 20px; color: #333; }
+        .container { max-width: 1500px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+        h1 { text-align: center; color: #333; margin-bottom: 10px; }
+        .nav-bar { text-align: center; margin-bottom: 25px; }
+        .nav-bar a { display: inline-block; padding: 8px 18px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
+        .card .title { font-size: 0.85em; color: #64748b; margin-bottom: 6px; }
+        .card .val { font-size: 1.3em; font-weight: bold; }
+        .profit-pos { color: #dc2626; } /* 紅色表示獲利 */
+        .profit-neg { color: #16a34a; } /* 綠色表示虧損 */
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.82em; table-layout: fixed; }
+        th { background: #1e293b; color: #fff; padding: 10px; border: 1px solid #334155; }
+        td { padding: 8px 4px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; }
+        .ball { display: inline-block; width: 22px; height: 22px; line-height: 22px; background: #b8978e; color: white; border-radius: 50%; font-size: 0.8em; }
+        .predict-row { background-color: #fffbeb !important; }
+        .hit-cell { background-color: #fef2f2; color: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>5 柱立柱損益與回測計算機</h1>
+        <div class="nav-bar">
+            <a href="index.html">⬅ 返回主分析儀表板</a>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card"><div class="title">單注成本</div><div class="val">75 元</div></div>
+            <div class="card"><div class="title">二星 / 三星 / 四星 單碰獎金</div><div class="val">5,300 / 57,000 / 750,000</div></div>
+            <div class="card"><div class="title">回測總投入成本</div><div class="val" id="sum-cost">0 元</div></div>
+            <div class="card"><div class="title">回測總中獎金額</div><div class="val" id="sum-prize">0 元</div></div>
+            <div class="card"><div class="title">回測累積淨損益</div><div class="val" id="sum-profit">0 元</div></div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 75px;">期別</th>
+                    <th style="width: 140px;">開獎號碼</th>
+                    <th>第1柱 (位01)</th>
+                    <th>第2柱 (位02)</th>
+                    <th>第3柱 (位03)</th>
+                    <th>第4柱 (位04)</th>
+                    <th>第5柱 (位05)</th>
+                    <th style="width: 70px;">命中柱數</th>
+                    <th style="width: 110px;">總碰數(2/3/4星)</th>
+                    <th style="width: 85px;">當期成本</th>
+                    <th style="width: 110px;">中獎碰數(2/3/4星)</th>
+                    <th style="width: 90px;">當期獎金</th>
+                    <th style="width: 90px;">淨損益</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-result"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const COST_PER_BET = 75;
+        const PRIZE_2 = 5300;
+        const PRIZE_3 = 57000;
+        const PRIZE_4 = 750000;
+        const pad = (n) => n.toString().padStart(2, '0');
+
+        async function loadData() {
+            try {
+                const res = await fetch('./data.json?t=' + new Date().getTime());
+                const data = await res.json();
+                runSimulation(data);
+            } catch (e) {
+                console.error("資料載入失敗:", e);
+            }
+        }
+
+        function calculateMatrix(data, type) {
+            const matrix = [];
+            for (let i = 0; i < data.length; i++) {
+                let d = [];
+                if (i > 0) {
+                    const prev = data[i-1].nums.map(Number);
+                    const curr = data[i].nums.map(Number);
+                    if (type === 1) { 
+                        for(let c=0; c<5; c++) d.push(curr.map(n => Math.abs(n - prev[c]))); 
+                    } else { 
+                        const t = prev.map(n => n % 10); 
+                        for(let c=0; c<5; c++) { 
+                            let s=0; for(let k=0; k<=c; k++) s+=t[k]; 
+                            d.push(curr.map(n => Math.abs(n - s))); 
+                        } 
+                    }
+                } else { for(let c=0; c<5; c++) d.push(null); }
+                matrix.push(d);
+            }
+            return matrix;
+        }
+
+        function getPredictions(data, matrix1, matrix2) {
+            const total = data.length;
+            const preds = {};
+            for (let offset = 20; offset >= 0; offset--) {
+                const targetIdx = total - offset;
+                if (targetIdx >= total && offset !== 0) continue;
+                const isFuture = (offset === 0);
+                const periodKey = isFuture ? "NEXT" : data[targetIdx].period;
+                const cols = [];
+
+                for (let c = 0; c < 5; c++) {
+                    const getModeHot = (matrix, type) => {
+                        const start = Math.max(1, (isFuture ? total : targetIdx) - 20);
+                        const end = isFuture ? total : targetIdx;
+                        const counts = {};
+                        for (let i = start; i < end; i++) {
+                            matrix[i][c].forEach(v => {
+                                if (matrix.slice(start, i).some(m => m[c] && m[c].includes(v))) {
+                                    counts[v] = (counts[v] || 0) + 1;
+                                }
+                            });
+                        }
+                        const hot = Object.keys(counts).sort((a,b) => counts[b] - counts[a]).slice(0, 2).map(Number);
+                        let base = 0;
+                        const refIdx = (isFuture ? total : targetIdx) - 1;
+                        if (type === 1) base = data[refIdx].nums.map(Number)[c];
+                        else {
+                            const t = data[refIdx].nums.map(n => Number(n)%10);
+                            for (let k = 0; k <= c; k++) base += t[k];
+                        }
+                        const p = [];
+                        hot.forEach(d => { [base+d, Math.abs(base-d)].forEach(n => { if (n >= 1 && n <= 39) p.push(n); }); });
+                        return p;
+                    };
+                    const p1 = getModeHot(matrix1, 1);
+                    const p2 = getModeHot(matrix2, 2);
+                    cols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
+                }
+                preds[periodKey] = cols;
+            }
+            return preds;
+        }
+
+        // 計算立柱碰數 (五柱挑 k 柱相乘之和)
+        function getPillarCombinations(counts, k) {
+            const len = counts.length;
+            let total = 0;
+            function backtrack(start, depth, currentProduct) {
+                if (depth === k) { total += currentProduct; return; }
+                for (let i = start; i < len; i++) {
+                    backtrack(i + 1, depth + 1, currentProduct * counts[i]);
+                }
+            }
+            backtrack(0, 0, 1);
+            return total;
+        }
+
+        const comb = (n, r) => {
+            if (n < r) return 0;
+            let p = 1;
+            for (let i = 0; i < r; i++) p = p * (n - i) / (i + 1);
+            return p;
+        };
+
+        function runSimulation(data) {
+            const m1 = calculateMatrix(data, 1);
+            const m2 = calculateMatrix(data, 2);
+            const preds = getPredictions(data, m1, m2);
+
+            const total = data.length;
+            const tbody = document.getElementById('tbody-result');
+            tbody.innerHTML = '';
+
+            let grandCost = 0;
+            let grandPrize = 0;
+
+            for (let offset = 20; offset >= 0; offset--) {
+                const targetIdx = total - offset;
+                const isFuture = (offset === 0);
+                if (!isFuture && targetIdx >= total) continue;
+
+                const period = isFuture ? "NEXT" : data[targetIdx].period;
+                const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
+                const cols = preds[period];
+
+                // 每柱號碼數
+                const colCounts = cols.map(c => c.length);
+                const p2Comb = getPillarCombinations(colCounts, 2);
+                const p3Comb = getPillarCombinations(colCounts, 3);
+                const p4Comb = getPillarCombinations(colCounts, 4);
+                const totalBets = p2Comb + p3Comb + p4Comb;
+                const cost = totalBets * COST_PER_BET;
+
+                // 統計命中柱數（每柱只要有號碼命中就算 1 柱）
+                let hitPillars = 0;
+                const colHits = cols.map(col => {
+                    const hits = col.filter(n => !isFuture && actual.includes(n));
+                    if (hits.length > 0) hitPillars++;
+                    return hits;
+                });
+
+                let win2 = 0, win3 = 0, win4 = 0, prize = 0, profit = 0;
+                if (!isFuture) {
+                    win2 = comb(hitPillars, 2);
+                    win3 = comb(hitPillars, 3);
+                    win4 = comb(hitPillars, 4);
+                    prize = (win2 * PRIZE_2) + (win3 * PRIZE_3) + (win4 * PRIZE_4);
+                    profit = prize - cost;
+
+                    grandCost += cost;
+                    grandPrize += prize;
+                }
+
+                const tr = document.createElement('tr');
+                if (isFuture) tr.className = 'predict-row';
+
+                let colsHtml = '';
+                for (let c = 0; c < 5; c++) {
+                    const text = cols[c].map(n => {
+                        const hit = !isFuture && actual.includes(n);
+                        return hit ? `<span style="color:#dc2626; text-decoration:underline;">${pad(n)}</span>` : pad(n);
+                    }).join(', ');
+                    const isHitCol = !isFuture && colHits[c].length > 0;
+                    colsHtml += `<td class="${isHitCol ? 'hit-cell' : ''}">${text}</td>`;
+                }
+
+                const profitClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
+                const profitText = isFuture ? '---' : `${profit >= 0 ? '+' : ''}${profit.toLocaleString()} 元`;
+
+                tr.innerHTML = `
+                    <td>${period}</td>
+                    <td>${isFuture ? '待開獎' : data[targetIdx].nums.map(n => `<span class="ball">${pad(n)}</span>`).join(' ')}</td>
+                    ${colsHtml}
+                    <td>${isFuture ? '---' : hitPillars + ' 柱'}</td>
+                    <td>${p2Comb} / ${p3Comb} / ${p4Comb}<br><small>(共${totalBets}碰)</small></td>
+                    <td>${cost.toLocaleString()} 元</td>
+                    <td>${isFuture ? '---' : `${win2} / ${win3} / ${win4}`}</td>
+                    <td>${isFuture ? '---' : prize.toLocaleString() + ' 元'}</td>
+                    <td class="${profitClass}">${profitText}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            const netProfit = grandPrize - grandCost;
+            document.getElementById('sum-cost').textContent = grandCost.toLocaleString() + ' 元';
+            document.getElementById('sum-prize').textContent = grandPrize.toLocaleString() + ' 元';
+            const sumProfitEl = document.getElementById('sum-profit');
+            sumProfitEl.textContent = `${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()} 元`;
+            sumProfitEl.className = `val ${netProfit >= 0 ? 'profit-pos' : 'profit-neg'}`;
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
