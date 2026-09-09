@@ -10,7 +10,6 @@
         .nav-bar { text-align: center; margin-bottom: 20px; }
         .nav-bar a { display: inline-block; padding: 8px 18px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
         
-        /* 篩選與參數設定面板 */
         .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; font-size: 0.95em; }
         .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px; }
         .filter-title { font-weight: bold; color: #1e293b; }
@@ -19,7 +18,7 @@
         
         .param-group { display: flex; align-items: center; gap: 15px; }
         .param-item { display: flex; align-items: center; gap: 6px; font-weight: 600; }
-        .param-input { width: 55px; padding: 4px 6px; text-align: center; font-size: 1em; font-weight: bold; border: 1px solid #94a3b8; border-radius: 4px; }
+        .param-input { width: 65px; padding: 4px 6px; text-align: center; font-size: 1em; font-weight: bold; border: 1px solid #94a3b8; border-radius: 4px; }
 
         .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
@@ -44,7 +43,6 @@
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
 
-        <!-- 參數與位置控制面板 -->
         <div class="filter-panel">
             <div class="filter-row">
                 <span class="filter-title">📌 選擇立柱參與位置：</span>
@@ -68,11 +66,11 @@
             <div class="filter-row">
                 <span class="filter-title">⚙️ 下注加權口數設定：</span>
                 <div class="param-group">
-                    <label class="param-item">二星: <input type="number" id="mult-2" class="param-input" value="6" min="0" step="1"> 口</label>
-                    <label class="param-item">三星: <input type="number" id="mult-3" class="param-input" value="1" min="0" step="1"> 口</label>
-                    <label class="param-item">四星: <input type="number" id="mult-4" class="param-input" value="1" min="0" step="1"> 口</label>
+                    <label class="param-item">二星: <input type="number" id="mult-2" class="param-input" value="6.0" min="0" step="0.1"> 口</label>
+                    <label class="param-item">三星: <input type="number" id="mult-3" class="param-input" value="1.0" min="0" step="0.1"> 口</label>
+                    <label class="param-item">四星: <input type="number" id="mult-4" class="param-input" value="1.0" min="0" step="0.1"> 口</label>
                 </div>
-                <span style="font-size: 0.85em; color: #64748b;">(數值可設為 0，代表不投注該星數)</span>
+                <span style="font-size: 0.85em; color: #64748b;">(支援小數第一位，填 0 代表不投注)</span>
             </div>
         </div>
 
@@ -121,16 +119,13 @@
                 const res = await fetch('./data.json?t=' + new Date().getTime());
                 globalData = await res.json();
                 
-                // 監聽位置 Checkbox 變更
                 document.querySelectorAll('.col-toggle').forEach(el => {
                     el.addEventListener('change', () => runSimulation(globalData));
                 });
 
-                // 監聽頭尾號過濾 Checkbox
                 document.getElementById('trim-head').addEventListener('change', () => runSimulation(globalData));
                 document.getElementById('trim-tail').addEventListener('change', () => runSimulation(globalData));
 
-                // 監聽加權口數 Input 變更
                 ['mult-2', 'mult-3', 'mult-4'].forEach(id => {
                     document.getElementById(id).addEventListener('input', () => runSimulation(globalData));
                 });
@@ -202,7 +197,6 @@
                     rawCols.push([...new Set([...p1, ...p2])].sort((a,b) => a - b));
                 }
 
-                // 跨柱去重邏輯：號碼僅保留在最早出現的柱位
                 const seenNumbers = new Set();
                 const dedupCols = [];
                 for (let c = 0; c < 5; c++) {
@@ -242,9 +236,10 @@
         };
 
         function runSimulation(data) {
-            const mult2 = Math.max(0, parseInt(document.getElementById('mult-2').value) || 0);
-            const mult3 = Math.max(0, parseInt(document.getElementById('mult-3').value) || 0);
-            const mult4 = Math.max(0, parseInt(document.getElementById('mult-4').value) || 0);
+            // 解析為浮點數並固定至小數第一位
+            const mult2 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10);
+            const mult3 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-3').value) || 0) * 10) / 10);
+            const mult4 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-4').value) || 0) * 10) / 10);
             
             document.getElementById('config-summary').textContent = `75 元 (2星×${mult2}, 3星×${mult3}, 4星×${mult4})`;
 
@@ -274,15 +269,10 @@
                 const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
                 const rawPeriodCols = preds[period];
 
-                // 套用頭尾號剔除邏輯
                 const allCols = rawPeriodCols.map(col => {
                     let sorted = [...col].sort((a, b) => a - b);
-                    if (trimHead && sorted.length > 0) {
-                        sorted.shift(); // 剔除最小號
-                    }
-                    if (trimTail && sorted.length > 0) {
-                        sorted.pop(); // 剔除最大號
-                    }
+                    if (trimHead && sorted.length > 0) sorted.shift();
+                    if (trimTail && sorted.length > 0) sorted.pop();
                     return sorted;
                 });
 
@@ -293,8 +283,9 @@
                 const p3Comb = getPillarCombinations(activeColCounts, 3);
                 const p4Comb = getPillarCombinations(activeColCounts, 4);
 
+                // 計算加權後總注數與成本（四捨五入至整數金額）
                 const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
-                const cost = totalBets * COST_PER_BET;
+                const cost = Math.round(totalBets * COST_PER_BET);
 
                 let hitPillars = 0;
                 activeCols.forEach(col => {
@@ -308,7 +299,7 @@
                     win3 = comb(hitPillars, 3);
                     win4 = comb(hitPillars, 4);
 
-                    prize = (win2 * mult2 * PRIZE_2) + (win3 * mult3 * PRIZE_3) + (win4 * mult4 * PRIZE_4);
+                    prize = Math.round((win2 * mult2 * PRIZE_2) + (win3 * mult3 * PRIZE_3) + (win4 * mult4 * PRIZE_4));
                     profit = prize - cost;
 
                     grandCost += cost;
@@ -348,7 +339,7 @@
                     ${colsHtml}
                     <td>${isFuture ? '---' : hitPillars + ' 柱'}</td>
                     <td>${p2Comb} / ${p3Comb} / ${p4Comb}</td>
-                    <td>${totalBets.toLocaleString()} 注</td>
+                    <td>${totalBets.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1})} 注</td>
                     <td>${cost.toLocaleString()} 元</td>
                     <td>${isFuture ? '---' : `${win2} / ${win3} / ${win4}`}</td>
                     <td>${isFuture ? '---' : prize.toLocaleString() + ' 元'}</td>
