@@ -11,7 +11,6 @@
         .nav-bar { text-align: center; margin-bottom: 15px; }
         .nav-bar a { display: inline-block; padding: 8px 16px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: bold; }
         
-        /* 獨立成本試算計算機 */
         .calc-panel { background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
         .calc-panel h3 { margin: 0 0 12px 0; color: #38bdf8; font-size: 1em; display: flex; align-items: center; gap: 8px; }
         .calc-grid { display: flex; flex-direction: column; gap: 12px; }
@@ -27,7 +26,6 @@
         .res-cost { border-color: #38bdf8; background: #0369a1; }
         .res-cost .res-val { color: #fff; }
 
-        /* 篩選與參數設定面板 */
         .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; font-size: 0.88em; }
         .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; }
         .filter-title { font-weight: bold; color: #1e293b; font-size: 0.9em; }
@@ -45,13 +43,11 @@
         .profit-pos { color: #dc2626; }
         .profit-neg { color: #16a34a; }
         
-        /* 核心響應式容器：解決手機端欄位壓迫問題 */
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #cbd5e1; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82em; min-width: 1100px; }
         th { background: #1e293b; color: #fff; padding: 8px 4px; border: 1px solid #334155; white-space: nowrap; }
         td { padding: 6px 4px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; vertical-align: middle; }
         
-        /* 柱位內號碼標籤化：保證足夠邊距且不破版 */
         .pillar-chips { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; min-width: 120px; }
         .chip { display: inline-block; padding: 1px 5px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.88em; font-family: monospace; }
         .chip-hit { background: #fee2e2 !important; border-color: #f87171 !important; color: #dc2626 !important; font-weight: 900; }
@@ -69,7 +65,6 @@
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
 
-        <!-- 獨立立柱成本計算機 -->
         <div class="calc-panel">
             <h3>🧮 立柱碰數與成本即時試算機</h3>
             <div class="calc-grid">
@@ -91,7 +86,6 @@
             </div>
         </div>
 
-        <!-- 參數與位置控制面板 -->
         <div class="filter-panel">
             <div class="filter-row">
                 <span class="filter-title">📌 選擇回測位置：</span>
@@ -123,7 +117,7 @@
         </div>
 
         <div class="summary-cards">
-            <div class="card"><div class="title">單注成本 / 當前配置</div><div class="val" id="config-summary" style="font-size: 0.85em;">75 元</div></div>
+            <div class="card"><div class="title">單注成本 / 配置</div><div class="val" id="config-summary" style="font-size: 0.85em;">75 元</div></div>
             <div class="card"><div class="title">參與立柱</div><div class="val" id="active-pillars-count">5 柱</div></div>
             <div class="card"><div class="title">總成本</div><div class="val" id="sum-cost">0 元</div></div>
             <div class="card"><div class="title">總獎金</div><div class="val" id="sum-prize">0 元</div></div>
@@ -141,11 +135,11 @@
                         <th>第3柱 (位03)</th>
                         <th>第4柱 (位04)</th>
                         <th>第5柱 (位05)</th>
-                        <th style="width: 65px;">命中</th>
+                        <th style="width: 75px;">命中狀況<br>(柱/顆)</th>
                         <th style="width: 85px;">基礎碰數</th>
                         <th style="width: 75px;">加權注數</th>
                         <th style="width: 75px;">當期成本</th>
-                        <th style="width: 85px;">中獎碰數</th>
+                        <th style="width: 95px;">中獎碰數<br>(2/3/4星)</th>
                         <th style="width: 80px;">當期獎金</th>
                         <th style="width: 80px;">淨損益</th>
                     </tr>
@@ -300,6 +294,7 @@
             return preds;
         }
 
+        // 計算各星數跨柱組合碰數 (通式：支援成本與中獎碰數)
         function getPillarCombinations(counts, k) {
             const len = counts.length;
             if (len < k) return 0;
@@ -307,19 +302,14 @@
             function backtrack(start, depth, currentProduct) {
                 if (depth === k) { total += currentProduct; return; }
                 for (let i = start; i < len; i++) {
-                    backtrack(i + 1, depth + 1, currentProduct * counts[i]);
+                    if (counts[i] > 0) {
+                        backtrack(i + 1, depth + 1, currentProduct * counts[i]);
+                    }
                 }
             }
             backtrack(0, 0, 1);
             return total;
         }
-
-        const comb = (n, r) => {
-            if (n < r) return 0;
-            let p = 1;
-            for (let i = 0; i < r; i++) p = p * (n - i) / (i + 1);
-            return p;
-        };
 
         function runSimulation(data) {
             const mult2 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10);
@@ -364,6 +354,7 @@
                 const activeCols = checkedCols.map(idx => allCols[idx]);
                 const activeColCounts = activeCols.map(c => c.length);
 
+                // 計算當期總碰數與總成本
                 const p2Comb = getPillarCombinations(activeColCounts, 2);
                 const p3Comb = getPillarCombinations(activeColCounts, 3);
                 const p4Comb = getPillarCombinations(activeColCounts, 4);
@@ -371,17 +362,26 @@
                 const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
                 const cost = Math.round(totalBets * COST_PER_BET);
 
+                // 計算每柱「實際命中顆數」
+                const hitCountsPerCol = [];
+                let totalHitBalls = 0;
                 let hitPillars = 0;
+
                 activeCols.forEach(col => {
                     const hits = col.filter(n => !isFuture && actual.includes(n));
-                    if (hits.length > 0) hitPillars++;
+                    hitCountsPerCol.push(hits.length);
+                    if (hits.length > 0) {
+                        hitPillars++;
+                        totalHitBalls += hits.length;
+                    }
                 });
 
+                // 依據號碼組合計算中獎碰數
                 let win2 = 0, win3 = 0, win4 = 0, prize = 0, profit = 0;
                 if (!isFuture) {
-                    win2 = comb(hitPillars, 2);
-                    win3 = comb(hitPillars, 3);
-                    win4 = comb(hitPillars, 4);
+                    win2 = getPillarCombinations(hitCountsPerCol, 2);
+                    win3 = getPillarCombinations(hitCountsPerCol, 3);
+                    win4 = getPillarCombinations(hitCountsPerCol, 4);
 
                     prize = Math.round((win2 * mult2 * PRIZE_2) + (win3 * mult3 * PRIZE_3) + (win4 * mult4 * PRIZE_4));
                     profit = prize - cost;
@@ -425,7 +425,7 @@
                     <td>${period}</td>
                     <td>${isFuture ? '待開獎' : data[targetIdx].nums.map(n => `<span class="ball">${pad(n)}</span>`).join('')}</td>
                     ${colsHtml}
-                    <td>${isFuture ? '---' : hitPillars + ' 柱'}</td>
+                    <td>${isFuture ? '---' : `${hitPillars}柱 / ${totalHitBalls}顆`}</td>
                     <td style="font-size:0.9em;">${p2Comb}/${p3Comb}/${p4Comb}</td>
                     <td>${totalBets.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1})}</td>
                     <td>${cost.toLocaleString()}</td>
