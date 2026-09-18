@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>今彩 539 - 自選立柱損益與回測分析</title>
+    <title>今彩 539 - 全歷史立柱損益與回測分析</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 12px; color: #333; margin: 0; }
         .container { max-width: 1600px; margin: 0 auto; background: white; padding: 15px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
@@ -60,7 +60,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>自選立柱損益與回測計算機</h1>
+        <h1>全歷史立柱損益與回測計算機</h1>
         <div class="nav-bar">
             <a href="index.html">⬅ 返回主分析儀表板</a>
         </div>
@@ -117,11 +117,11 @@
         </div>
 
         <div class="summary-cards">
-            <div class="card"><div class="title">單注成本 / 配置</div><div class="val" id="config-summary" style="font-size: 0.85em;">75 元</div></div>
-            <div class="card"><div class="title">參與立柱</div><div class="val" id="active-pillars-count">5 柱</div></div>
+            <div class="card"><div class="title">回測期數 / 柱數</div><div class="val" id="active-pillars-count">0 期 (5柱)</div></div>
             <div class="card"><div class="title">總成本</div><div class="val" id="sum-cost">0 元</div></div>
             <div class="card"><div class="title">總獎金</div><div class="val" id="sum-prize">0 元</div></div>
             <div class="card"><div class="title">累積淨損益</div><div class="val" id="sum-profit">0 元</div></div>
+            <div class="card"><div class="title">投資報酬率 (ROI)</div><div class="val" id="sum-roi">0%</div></div>
         </div>
 
         <div class="table-responsive">
@@ -237,7 +237,8 @@
         function getPredictions(data, matrix1, matrix2) {
             const total = data.length;
             const preds = {};
-            for (let offset = 20; offset >= 0; offset--) {
+            // 解除 20 期限制：從第 1 期可回測資料一路計算至最新待開獎 (NEXT)
+            for (let offset = total - 1; offset >= 0; offset--) {
                 const targetIdx = total - offset;
                 if (targetIdx >= total && offset !== 0) continue;
                 const isFuture = (offset === 0);
@@ -294,7 +295,6 @@
             return preds;
         }
 
-        // 計算各星數跨柱組合碰數 (通式：支援成本與中獎碰數)
         function getPillarCombinations(counts, k) {
             const len = counts.length;
             if (len < k) return 0;
@@ -315,12 +315,8 @@
             const mult2 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10);
             const mult3 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-3').value) || 0) * 10) / 10);
             const mult4 = Math.max(0, Math.round((parseFloat(document.getElementById('mult-4').value) || 0) * 10) / 10);
-            
-            document.getElementById('config-summary').textContent = `75元 (2星×${mult2}, 3星×${mult3}, 4星×${mult4})`;
 
             const checkedCols = Array.from(document.querySelectorAll('.col-toggle:checked')).map(el => parseInt(el.value));
-            document.getElementById('active-pillars-count').textContent = `${checkedCols.length} 柱`;
-
             const trimHead = document.getElementById('trim-head').checked;
             const trimTail = document.getElementById('trim-tail').checked;
 
@@ -334,11 +330,15 @@
 
             let grandCost = 0;
             let grandPrize = 0;
+            let totalHistoricalPeriods = 0;
 
-            for (let offset = 20; offset >= 0; offset--) {
+            // 全歷史回測：遍歷所有可行期別
+            for (let offset = total - 1; offset >= 0; offset--) {
                 const targetIdx = total - offset;
                 const isFuture = (offset === 0);
                 if (!isFuture && targetIdx >= total) continue;
+
+                if (!isFuture) totalHistoricalPeriods++;
 
                 const period = isFuture ? "NEXT" : data[targetIdx].period;
                 const actual = isFuture ? [] : data[targetIdx].nums.map(Number);
@@ -354,7 +354,6 @@
                 const activeCols = checkedCols.map(idx => allCols[idx]);
                 const activeColCounts = activeCols.map(c => c.length);
 
-                // 計算當期總碰數與總成本
                 const p2Comb = getPillarCombinations(activeColCounts, 2);
                 const p3Comb = getPillarCombinations(activeColCounts, 3);
                 const p4Comb = getPillarCombinations(activeColCounts, 4);
@@ -362,7 +361,6 @@
                 const totalBets = (p2Comb * mult2) + (p3Comb * mult3) + (p4Comb * mult4);
                 const cost = Math.round(totalBets * COST_PER_BET);
 
-                // 計算每柱「實際命中顆數」
                 const hitCountsPerCol = [];
                 let totalHitBalls = 0;
                 let hitPillars = 0;
@@ -376,7 +374,6 @@
                     }
                 });
 
-                // 依據號碼組合計算中獎碰數
                 let win2 = 0, win3 = 0, win4 = 0, prize = 0, profit = 0;
                 if (!isFuture) {
                     win2 = getPillarCombinations(hitCountsPerCol, 2);
@@ -436,12 +433,21 @@
                 tbody.appendChild(tr);
             }
 
+            // 更新統計卡片
             const netProfit = grandPrize - grandCost;
+            const roi = grandCost > 0 ? ((netProfit / grandCost) * 100).toFixed(1) : 0;
+
+            document.getElementById('active-pillars-count').textContent = `${totalHistoricalPeriods} 期 (${checkedCols.length}柱)`;
             document.getElementById('sum-cost').textContent = grandCost.toLocaleString() + ' 元';
             document.getElementById('sum-prize').textContent = grandPrize.toLocaleString() + ' 元';
+            
             const sumProfitEl = document.getElementById('sum-profit');
             sumProfitEl.textContent = `${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()} 元`;
             sumProfitEl.className = `val ${netProfit >= 0 ? 'profit-pos' : 'profit-neg'}`;
+
+            const roiEl = document.getElementById('sum-roi');
+            roiEl.textContent = `${roi >= 0 ? '+' : ''}${roi}%`;
+            roiEl.className = `val ${roi >= 0 ? 'profit-pos' : 'profit-neg'}`;
         }
 
         init();
