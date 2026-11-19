@@ -1,205 +1,720 @@
-// 將最多 4 顆不重複號碼，依數值落點分配至 5 柱中的獨立柱位（每柱最多 1 顆）
-function assignTo5Pillars(nums) {
-    const sorted = [...new Set(nums)].sort((a, b) => a - b).slice(0, 4);
-    const cols = [[], [], [], [], []];
-    if (sorted.length === 0) return cols;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>今彩 539 - 立柱量化回測與成本計算系統</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 12px; color: #333; margin: 0; }
+        .container { max-width: 1650px; margin: 0 auto; background: white; padding: 16px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        h1 { text-align: center; color: #1e293b; font-size: 1.4em; margin: 8px 0 14px 0; }
+        .nav-bar { text-align: center; margin-bottom: 16px; }
+        .nav-bar a { display: inline-block; padding: 8px 16px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: bold; }
 
-    const centers = [6.5, 13.5, 20.0, 26.5, 33.5];
-    let bestAssign = null;
-    let bestDist = Infinity;
+        /* 獨立立柱成本試算計算機 */
+        .calc-panel { background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 15px; margin-bottom: 18px; }
+        .calc-panel h3 { margin: 0 0 12px 0; color: #38bdf8; font-size: 1em; display: flex; align-items: center; gap: 8px; }
+        .calc-grid { display: flex; flex-direction: column; gap: 12px; }
+        .pillar-inputs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; }
+        .pillar-input-box { display: flex; flex-direction: column; align-items: center; background: #1e293b; padding: 6px 8px; border-radius: 6px; border: 1px solid #334155; }
+        .pillar-input-box label { font-size: 0.7em; color: #94a3b8; margin-bottom: 2px; }
+        .pillar-input-box input { width: 44px; padding: 4px 0; text-align: center; font-size: 1em; font-weight: bold; background: #0f172a; border: 1px solid #475569; color: #38bdf8; border-radius: 4px; }
 
-    function choose(start, chosen) {
-        if (chosen.length === sorted.length) {
-            let dist = 0;
-            for (let i = 0; i < sorted.length; i++) {
-                dist += Math.abs(sorted[i] - centers[chosen[i]]);
-            }
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestAssign = [...chosen];
-            }
-            return;
-        }
-        for (let i = start; i < 5; i++) {
-            chosen.push(i);
-            choose(i + 1, chosen);
-            chosen.pop();
-        }
-    }
-    choose(0, []);
-    for (let i = 0; i < sorted.length; i++) {
-        cols[bestAssign[i]].push(sorted[i]);
-    }
-    return cols;
-}
+        .calc-result-boxes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .res-box { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; text-align: center; flex: 1 1 80px; min-width: 75px; }
+        .res-box .res-label { font-size: 0.7em; color: #94a3b8; margin-bottom: 2px; }
+        .res-box .res-val { font-size: 1em; font-weight: bold; color: #f8fafc; }
+        .res-cost { border-color: #38bdf8; background: #0369a1; }
+        .res-cost .res-val { color: #fff; }
 
-// 第三輪量化模型：多因子定位共識 + 近50期Lag1~3單號拖牌 + 最多4碼與SKIP風控
-function getPredictions(data, matrix1, matrix2) {
-    const total = data.length;
-    const preds = {};
+        /* 參數與策略控制面板 */
+        .filter-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 0.88em; }
+        .filter-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; }
+        .filter-title { font-weight: bold; color: #1e293b; font-size: 0.9em; }
+        .checkbox-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; }
+        .checkbox-item { cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600; }
+        .select-input { padding: 4px 8px; font-size: 0.92em; font-weight: bold; border: 1px solid #94a3b8; border-radius: 5px; background: #fff; color: #1e293b; }
 
-    const MAX_BALLS = 4;        // 硬限制：每期最多 4 碼
-    const MIN_BALLS = 3;        // 風控：少於 3 顆達標觸發 SKIP
-    const MIN_SCORE = 5.0;      // 高共識門檻
-    const W_DRAG = 1.0;         // 近 50 期拖牌權重
-    const DRAG_WINDOW = 50;
+        .param-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .param-item { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+        .param-input { width: 54px; padding: 3px; text-align: center; font-size: 0.95em; font-weight: bold; border: 1px solid #94a3b8; border-radius: 4px; }
+        .hint-text { font-size: 0.8em; color: #64748b; }
 
-    for (let offset = total - 1; offset >= 0; offset--) {
-        const targetIdx = total - offset;
-        if (targetIdx >= total && offset !== 0) continue;
-        const isFuture = (offset === 0);
-        const periodKey = isFuture ? "NEXT" : data[targetIdx].period;
-        const endIdx = isFuture ? total : targetIdx;
-        const startIdx = Math.max(1, endIdx - 20);
+        /* 績效摘要卡片 */
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; margin-bottom: 18px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; text-align: center; }
+        .card .title { font-size: 0.75em; color: #64748b; margin-bottom: 4px; }
+        .card .val { font-size: 1.05em; font-weight: bold; }
+        .profit-pos { color: #dc2626; }
+        .profit-neg { color: #16a34a; }
 
-        if (endIdx < 2) {
-            preds[periodKey] = [[], [], [], [], []];
-            continue;
-        }
+        /* 響應式表格容器 */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #cbd5e1; max-height: 75vh; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82em; min-width: 1180px; }
+        thead th { position: sticky; top: 0; z-index: 2; background: #1e293b; color: #fff; padding: 8px 4px; border: 1px solid #334155; white-space: nowrap; }
+        td { padding: 6px 4px; border: 1px solid #e2e8f0; text-align: center; font-weight: bold; vertical-align: middle; }
 
-        // 嚴格只取 0 .. endIdx-1 歷史資料（防資料洩漏）
-        const historySlice = data.slice(0, endIdx);
-        const draws = historySlice.map(h => h.nums.map(Number));
-        const lastNums = draws[draws.length - 1];
-        const lastTails = lastNums.map(n => n % 10);
+        /* 號碼標籤化防擠壓 */
+        .pillar-chips { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; min-width: 110px; }
+        .chip { display: inline-block; padding: 1px 5px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
+        .chip-hit { background: #fee2e2 !important; border-color: #f87171 !important; color: #dc2626 !important; font-weight: 900; }
 
-        // 1. 計算遺漏值 (Omission)
-        const omission = {};
-        for (let num = 1; num <= 39; num++) {
-            let gap = 0;
-            for (let i = draws.length - 1; i >= 0; i--) {
-                if (draws[i].includes(num)) break;
-                gap++;
-            }
-            omission[num] = gap;
-        }
+        .ball { display: inline-block; width: 20px; height: 20px; line-height: 20px; background: #b8978e; color: white; border-radius: 50%; font-size: 0.75em; margin: 1px; }
+        .predict-row { background-color: #fffbeb !important; }
+        .skip-row { background-color: #f8fafc; color: #94a3b8; }
+        .skip-badge { display: inline-block; padding: 2px 8px; background: #e2e8f0; color: #475569; border-radius: 4px; font-size: 0.85em; }
+        .hit-cell { background-color: #fef2f2; }
+        .col-disabled { background-color: #f1f5f9 !important; color: #94a3b8 !important; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>今彩 539 立柱損益與量化回測系統</h1>
+        <div class="nav-bar">
+            <a href="index.html">⬅ 返回主分析儀表板</a>
+        </div>
 
-        // 2. 計算各位置歷史均值與標準差
-        const posMean = [];
-        const posStd = [];
-        for (let c = 0; c < 5; c++) {
-            const vals = draws.map(d => d[c]);
-            const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-            const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
-            posMean.push(mean);
-            posStd.push(Math.max(2.0, Math.sqrt(variance)));
-        }
+        <!-- 獨立立柱成本試算計算機 -->
+        <div class="calc-panel">
+            <h3>立柱碰數與成本即時試算機</h3>
+            <div class="calc-grid">
+                <div class="pillar-inputs">
+                    <div class="pillar-input-box"><label>柱1</label><input type="number" id="calc-c1" value="1" min="0" max="39"></div>
+                    <div class="pillar-input-box"><label>柱2</label><input type="number" id="calc-c2" value="1" min="0" max="39"></div>
+                    <div class="pillar-input-box"><label>柱3</label><input type="number" id="calc-c3" value="1" min="0" max="39"></div>
+                    <div class="pillar-input-box"><label>柱4</label><input type="number" id="calc-c4" value="1" min="0" max="39"></div>
+                    <div class="pillar-input-box"><label>柱5</label><input type="number" id="calc-c5" value="0" min="0" max="39"></div>
+                </div>
+                <div class="calc-result-boxes">
+                    <div class="res-box"><div class="res-label">二星碰數</div><div class="res-val" id="calc-p2">0</div></div>
+                    <div class="res-box"><div class="res-label">三星碰數</div><div class="res-val" id="calc-p3">0</div></div>
+                    <div class="res-box"><div class="res-label">四星碰數</div><div class="res-val" id="calc-p4">0</div></div>
+                    <div class="res-box"><div class="res-label">總注數(含加權)</div><div class="res-val" id="calc-total-bets" style="color: #facc15;">0</div></div>
+                    <div class="res-box res-cost"><div class="res-label" style="color: #e0f2fe;">總成本</div><div class="res-val" id="calc-total-cost">0 元</div></div>
+                </div>
+            </div>
+        </div>
 
-        // 3. 近 15 期尾數熱度
-        const tailFreq = Array(10).fill(0);
-        draws.slice(Math.max(0, draws.length - 15)).forEach(d => {
-            d.forEach(n => tailFreq[n % 10]++);
-        });
+        <!-- 策略、位置與加權控制面板 -->
+        <div class="filter-panel">
+            <div class="filter-row">
+                <span class="filter-title">抓牌模型：</span>
+                <select id="strategy-mode" class="select-input">
+                    <option value="quant_r3" selected>R3 量化精選（最多 4 碼 + 近50期拖牌 + SKIP 風控）</option>
+                    <option value="classic_m1m2">經典 M1+M2 全柱模式（去重優先：2&gt;1、4&gt;5）</option>
+                </select>
 
-        // 4. 近 50 期單號隔期拖牌矩陣 (Lag 1 ~ 3)
-        const hDrag = draws.slice(Math.max(0, draws.length - DRAG_WINDOW));
-        const nDrag = hDrag.length;
-        const dragRaw = Array(40).fill(0);
+                <span class="filter-title" style="margin-left: 8px;">回測區間：</span>
+                <select id="range-mode" class="select-input">
+                    <option value="all" selected>全部歷史期</option>
+                    <option value="200">最近 200 期</option>
+                    <option value="60">最近 60 期</option>
+                </select>
+            </div>
 
-        for (let lag = 1; lag <= 3; lag++) {
-            if (nDrag <= lag) continue;
-            const trigCnt = Array(40).fill(0);
-            const coCnt = Array.from({ length: 40 }, () => Array(40).fill(0));
+            <div class="filter-row">
+                <span class="filter-title">參與柱位：</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="0" checked> 位01</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="1" checked> 位02</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="2" checked> 位03</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="3" checked> 位04</label>
+                    <label class="checkbox-item"><input type="checkbox" class="col-toggle" value="4" checked> 位05</label>
+                </div>
+            </div>
 
-            for (let i = lag; i < nDrag; i++) {
-                for (const a of hDrag[i - lag]) {
-                    trigCnt[a]++;
-                    for (const b of hDrag[i]) coCnt[a][b]++;
+            <div class="filter-row">
+                <span class="filter-title">頭尾精簡：</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" id="trim-head"> 剔除每柱最小號</label>
+                    <label class="checkbox-item"><input type="checkbox" id="trim-tail"> 剔除每柱最大號</label>
+                </div>
+                <span class="hint-text" id="trim-hint">（註：R3 模式下每柱最多 1 碼，建議不勾選頭尾剔除）</span>
+            </div>
+
+            <div class="filter-row">
+                <span class="filter-title">加權口數：</span>
+                <div class="param-group">
+                    <label class="param-item">2星: <input type="number" id="mult-2" class="param-input" value="6.0" min="0" step="0.1"> 口</label>
+                    <label class="param-item">3星: <input type="number" id="mult-3" class="param-input" value="1.0" min="0" step="0.1"> 口</label>
+                    <label class="param-item">4星: <input type="number" id="mult-4" class="param-input" value="1.0" min="0" step="0.1"> 口</label>
+                </div>
+                <span class="hint-text">（單注 75 元；2/3/4 星單碰獎金 5,300 / 57,000 / 750,000）</span>
+            </div>
+        </div>
+
+        <!-- 統計摘要卡片 -->
+        <div class="summary-cards">
+            <div class="card"><div class="title">出手 / 總回測期數</div><div class="val" id="sum-periods">0 / 0 期</div></div>
+            <div class="card"><div class="title">總投入成本</div><div class="val" id="sum-cost">0 元</div></div>
+            <div class="card"><div class="title">總中獎金額</div><div class="val" id="sum-prize">0 元</div></div>
+            <div class="card"><div class="title">累積淨損益</div><div class="val" id="sum-profit">0 元</div></div>
+            <div class="card"><div class="title">投資報酬率 (ROI)</div><div class="val" id="sum-roi">0%</div></div>
+            <div class="card"><div class="title">最大連敗期數</div><div class="val" id="sum-streak">0 期</div></div>
+        </div>
+
+        <!-- 回測明細表（NEXT 與最新期置頂） -->
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">期別</th>
+                        <th style="width: 122px;">當期獎號</th>
+                        <th>第1柱 (位01)</th>
+                        <th>第2柱 (位02)</th>
+                        <th>第3柱 (位03)</th>
+                        <th>第4柱 (位04)</th>
+                        <th>第5柱 (位05)</th>
+                        <th style="width: 78px;">命中狀況<br>(柱/顆)</th>
+                        <th style="width: 90px;">基礎碰數<br>(2/3/4星)</th>
+                        <th style="width: 72px;">加權注數</th>
+                        <th style="width: 78px;">當期成本</th>
+                        <th style="width: 90px;">中獎碰數<br>(2/3/4星)</th>
+                        <th style="width: 82px;">當期獎金</th>
+                        <th style="width: 86px;">淨損益</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-result"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const COST_PER_BET = 75;
+        const PRIZE_2 = 5300;
+        const PRIZE_3 = 57000;
+        const PRIZE_4 = 750000;
+
+        let globalData = [];
+        let cachedPreds = { quant_r3: null, classic_m1m2: null };
+        const pad = (n) => n.toString().padStart(2, '0');
+
+        async function init() {
+            try {
+                for (let i = 1; i <= 5; i++) {
+                    document.getElementById(`calc-c${i}`).addEventListener('input', updateStandaloneCalculator);
                 }
-            }
-            for (const a of hDrag[nDrag - lag]) {
-                if (trigCnt[a] >= 3) {
-                    for (let b = 1; b <= 39; b++) {
-                        dragRaw[b] += ((coCnt[a][b] + 0.5) / (trigCnt[a] + 3.9)) / lag;
-                    }
-                }
-            }
-        }
-        const dragVals = dragRaw.slice(1);
-        const dMin = Math.min(...dragVals);
-        const dMax = Math.max(...dragVals);
-        const dragNorm = Array(40).fill(0);
-        if (dMax > dMin) {
-            for (let b = 1; b <= 39; b++) {
-                dragNorm[b] = (dragRaw[b] - dMin) / (dMax - dMin);
-            }
-        }
 
-        // 5. 逐柱評分，每柱取最高分候選
-        const bestPerPillar = [];
-        for (let c = 0; c < 5; c++) {
-            const getCandidates = (matrix, type) => {
-                const counts = {};
-                for (let i = startIdx; i < endIdx; i++) {
-                    matrix[i][c].forEach(v => {
-                        if (matrix.slice(startIdx, i).some(m => m[c] && m[c].includes(v))) {
-                            counts[v] = (counts[v] || 0) + 1;
-                        }
-                    });
-                }
-                const hot = Object.keys(counts)
-                    .sort((a, b) => (counts[b] - counts[a]) || (Number(a) - Number(b)))
-                    .slice(0, 3)
-                    .map(Number);
+                const res = await fetch('./data.json?t=' + Date.now());
+                globalData = await res.json();
 
-                let base = 0;
-                if (type === 1) base = lastNums[c];
-                else for (let k = 0; k <= c; k++) base += lastTails[k];
+                // 預先計算並快取兩種模型結果（避免切換參數時重複掃描千期矩陣）
+                const m1 = calculateMatrix(globalData, 1);
+                const m2 = calculateMatrix(globalData, 2);
+                cachedPreds.quant_r3 = buildPredictionsQuantR3(globalData, m1, m2);
+                cachedPreds.classic_m1m2 = buildPredictionsClassic(globalData, m1, m2);
 
-                const set = new Set();
-                hot.forEach(d => {
-                    [base + d, Math.abs(base - d)].forEach(n => {
-                        if (n >= 1 && n <= 39) set.add(n);
+                document.getElementById('strategy-mode').addEventListener('change', runSimulation);
+                document.getElementById('range-mode').addEventListener('change', runSimulation);
+                document.querySelectorAll('.col-toggle').forEach(el => el.addEventListener('change', runSimulation));
+                document.getElementById('trim-head').addEventListener('change', runSimulation);
+                document.getElementById('trim-tail').addEventListener('change', runSimulation);
+
+                ['mult-2', 'mult-3', 'mult-4'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => {
+                        updateStandaloneCalculator();
+                        runSimulation();
                     });
                 });
-                return set;
+
+                updateStandaloneCalculator();
+                runSimulation();
+            } catch (e) {
+                console.error("資料載入失敗:", e);
+                document.getElementById('tbody-result').innerHTML =
+                    '<tr><td colspan="14" style="color:#dc2626; padding:20px;">data.json 載入失敗，請確認檔案是否存在於同一目錄。</td></tr>';
+            }
+        }
+
+        function getMultipliers() {
+            return {
+                m2: Math.max(0, Math.round((parseFloat(document.getElementById('mult-2').value) || 0) * 10) / 10),
+                m3: Math.max(0, Math.round((parseFloat(document.getElementById('mult-3').value) || 0) * 10) / 10),
+                m4: Math.max(0, Math.round((parseFloat(document.getElementById('mult-4').value) || 0) * 10) / 10)
             };
+        }
 
-            const s1 = getCandidates(matrix1, 1);
-            const s2 = getCandidates(matrix2, 2);
-            const unionSet = new Set([...s1, ...s2]);
-
-            const scored = [];
-            unionSet.forEach(num => {
-                const z = Math.abs(num - posMean[c]) / posStd[c];
-                if (z > 1.6) return;
-
-                let score = (s1.has(num) && s2.has(num)) ? 3.0 : 1.0;
-                score += Math.max(0, 1.5 - z);
-
-                const g = omission[num];
-                if ((g >= 1 && g <= 5) || (g >= 10 && g <= 18)) score += 1.0;
-                if (lastNums.some(ln => Math.abs(num - ln) <= 1)) score += 0.8;
-                score += tailFreq[num % 10] * 0.1;
-                score += W_DRAG * dragNorm[num];
-
-                if (score >= MIN_SCORE) {
-                    scored.push({ num, score });
+        // 計算立柱組合碰數（通用於投注碰數與命中碰數）
+        function getPillarCombinations(counts, k) {
+            const len = counts.length;
+            if (len < k) return 0;
+            let total = 0;
+            function backtrack(start, depth, prod) {
+                if (depth === k) { total += prod; return; }
+                for (let i = start; i < len; i++) {
+                    if (counts[i] > 0) backtrack(i + 1, depth + 1, prod * counts[i]);
                 }
-            });
-
-            scored.sort((a, b) => (b.score - a.score) || (a.num - b.num));
-            if (scored.length > 0) {
-                bestPerPillar.push(scored[0]);
             }
+            backtrack(0, 0, 1);
+            return total;
         }
 
-        // 6. 全盤排序去重，硬性截斷最多 4 碼，不足 3 碼觸發 SKIP
-        bestPerPillar.sort((a, b) => (b.score - a.score) || (a.num - b.num));
-        const picked = [];
-        const seen = new Set();
-        for (const item of bestPerPillar) {
-            if (!seen.has(item.num)) {
-                seen.add(item.num);
-                picked.push(item.num);
+        function updateStandaloneCalculator() {
+            const counts = [];
+            for (let i = 1; i <= 5; i++) {
+                counts.push(Math.max(0, parseInt(document.getElementById(`calc-c${i}`).value, 10) || 0));
             }
-            if (picked.length >= MAX_BALLS) break;
+            const { m2, m3, m4 } = getMultipliers();
+            const p2 = getPillarCombinations(counts, 2);
+            const p3 = getPillarCombinations(counts, 3);
+            const p4 = getPillarCombinations(counts, 4);
+
+            const totalBets = (p2 * m2) + (p3 * m3) + (p4 * m4);
+            const totalCost = Math.round(totalBets * COST_PER_BET);
+
+            document.getElementById('calc-p2').textContent = p2.toLocaleString();
+            document.getElementById('calc-p3').textContent = p3.toLocaleString();
+            document.getElementById('calc-p4').textContent = p4.toLocaleString();
+            document.getElementById('calc-total-bets').textContent = totalBets.toLocaleString(undefined, { maximumFractionDigits: 1 });
+            document.getElementById('calc-total-cost').textContent = totalCost.toLocaleString() + ' 元';
         }
 
-        preds[periodKey] = (picked.length >= MIN_BALLS)
-            ? assignTo5Pillars(picked)
-            : [[], [], [], [], []];
-    }
+        function calculateMatrix(data, type) {
+            const matrix = new Array(data.length);
+            for (let i = 0; i < data.length; i++) {
+                if (i === 0) {
+                    matrix[i] = [null, null, null, null, null];
+                    continue;
+                }
+                const prev = data[i - 1].nums.map(Number);
+                const curr = data[i].nums.map(Number);
+                const row = [];
+                if (type === 1) {
+                    for (let c = 0; c < 5; c++) row.push(curr.map(n => Math.abs(n - prev[c])));
+                } else {
+                    const tails = prev.map(n => n % 10);
+                    let s = 0;
+                    for (let c = 0; c < 5; c++) {
+                        s += tails[c];
+                        row.push(curr.map(n => Math.abs(n - s)));
+                    }
+                }
+                matrix[i] = row;
+            }
+            return matrix;
+        }
 
-    return preds;
-}
+        function getModeHotCandidates(matrix, data, type, c, startIdx, endIdx, topK) {
+            const counts = {};
+            for (let i = startIdx; i < endIdx; i++) {
+                const rowVals = matrix[i][c];
+                if (!rowVals) continue;
+                for (let idx = 0; idx < rowVals.length; idx++) {
+                    const v = rowVals[idx];
+                    let seenPrev = false;
+                    for (let k = startIdx; k < i; k++) {
+                        if (matrix[k][c] && matrix[k][c].includes(v)) {
+                            seenPrev = true;
+                            break;
+                        }
+                    }
+                    if (seenPrev) counts[v] = (counts[v] || 0) + 1;
+                }
+            }
+            const hot = Object.keys(counts)
+                .sort((a, b) => (counts[b] - counts[a]) || (Number(a) - Number(b)))
+                .slice(0, topK)
+                .map(Number);
+
+            const lastNums = data[endIdx - 1].nums.map(Number);
+            let base = 0;
+            if (type === 1) {
+                base = lastNums[c];
+            } else {
+                for (let k = 0; k <= c; k++) base += (lastNums[k] % 10);
+            }
+
+            const result = new Set();
+            for (const d of hot) {
+                const a = base + d;
+                const b = Math.abs(base - d);
+                if (a >= 1 && a <= 39) result.add(a);
+                if (b >= 1 && b <= 39) result.add(b);
+            }
+            return result;
+        }
+
+        // 模型 A：經典 M1+M2 全柱去重模型（優先順序：位02 > 位01 > 位03 > 位04 > 位05）
+        function buildPredictionsClassic(data, matrix1, matrix2) {
+            const total = data.length;
+            const predsByIdx = new Array(total + 1);
+            const priorityOrder = [1, 0, 2, 3, 4];
+
+            for (let targetIdx = 0; targetIdx <= total; targetIdx++) {
+                if (targetIdx < 2) {
+                    predsByIdx[targetIdx] = [[], [], [], [], []];
+                    continue;
+                }
+                const startIdx = Math.max(1, targetIdx - 20);
+                const rawCols = [];
+
+                for (let c = 0; c < 5; c++) {
+                    const s1 = getModeHotCandidates(matrix1, data, 1, c, startIdx, targetIdx, 2);
+                    const s2 = getModeHotCandidates(matrix2, data, 2, c, startIdx, targetIdx, 2);
+                    rawCols.push([...new Set([...s1, ...s2])].sort((a, b) => a - b));
+                }
+
+                const seen = new Set();
+                const dedupCols = [[], [], [], [], []];
+                for (const colIdx of priorityOrder) {
+                    for (const num of rawCols[colIdx]) {
+                        if (!seen.has(num)) {
+                            seen.add(num);
+                            dedupCols[colIdx].push(num);
+                        }
+                    }
+                }
+                predsByIdx[targetIdx] = dedupCols;
+            }
+            return predsByIdx;
+        }
+
+        // 將最多 4 顆不重複號碼依數值距離配對至 5 個獨立柱位
+        function assignTo5Pillars(nums) {
+            const sorted = [...new Set(nums)].sort((a, b) => a - b).slice(0, 4);
+            const cols = [[], [], [], [], []];
+            if (sorted.length === 0) return cols;
+
+            const centers = [6.5, 13.5, 20.0, 26.5, 33.5];
+            let bestAssign = null;
+            let bestDist = Infinity;
+
+            function choose(start, chosen) {
+                if (chosen.length === sorted.length) {
+                    let dist = 0;
+                    for (let i = 0; i < sorted.length; i++) {
+                        dist += Math.abs(sorted[i] - centers[chosen[i]]);
+                    }
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestAssign = [...chosen];
+                    }
+                    return;
+                }
+                for (let i = start; i < 5; i++) {
+                    chosen.push(i);
+                    choose(i + 1, chosen);
+                    chosen.pop();
+                }
+            }
+            choose(0, []);
+            for (let i = 0; i < sorted.length; i++) {
+                cols[bestAssign[i]].push(sorted[i]);
+            }
+            return cols;
+        }
+
+        // 模型 B：R3 量化精選模型（增量 O(N) 維護統計量，支援千期以上無延遲運算）
+        function buildPredictionsQuantR3(data, matrix1, matrix2) {
+            const total = data.length;
+            const predsByIdx = new Array(total + 1);
+            const draws = data.map(d => d.nums.map(Number));
+
+            const MAX_BALLS = 4;
+            const MIN_BALLS = 3;
+            const MIN_SCORE = 5.0;
+            const W_DRAG = 1.0;
+            const DRAG_WINDOW = 50;
+
+            // 增量狀態：嚴格只累加 0 .. targetIdx-1（防止資料洩漏）
+            const lastSeenIdx = Array(40).fill(-1);
+            const posSum = [0, 0, 0, 0, 0];
+            const posSqSum = [0, 0, 0, 0, 0];
+
+            for (let targetIdx = 0; targetIdx <= total; targetIdx++) {
+                if (targetIdx > 0) {
+                    const prevDraw = draws[targetIdx - 1];
+                    for (let c = 0; c < 5; c++) {
+                        const val = prevDraw[c];
+                        lastSeenIdx[val] = targetIdx - 1;
+                        posSum[c] += val;
+                        posSqSum[c] += val * val;
+                    }
+                }
+
+                if (targetIdx < 2) {
+                    predsByIdx[targetIdx] = [[], [], [], [], []];
+                    continue;
+                }
+
+                const startIdx = Math.max(1, targetIdx - 20);
+                const lastNums = draws[targetIdx - 1];
+
+                // 1. 計算各位置歷史均值與標準差 (0 .. targetIdx-1)
+                const posMean = [];
+                const posStd = [];
+                for (let c = 0; c < 5; c++) {
+                    const mean = posSum[c] / targetIdx;
+                    const variance = Math.max(0, (posSqSum[c] / targetIdx) - (mean * mean));
+                    posMean.push(mean);
+                    posStd.push(Math.max(2.0, Math.sqrt(variance)));
+                }
+
+                // 2. 近 15 期尾數熱度
+                const tailFreq = Array(10).fill(0);
+                const tailStart = Math.max(0, targetIdx - 15);
+                for (let i = tailStart; i < targetIdx; i++) {
+                    for (let c = 0; c < 5; c++) tailFreq[draws[i][c] % 10]++;
+                }
+
+                // 3. 近 50 期單號隔期拖牌矩陣 (Lag 1 ~ 3)
+                const dragStart = Math.max(0, targetIdx - DRAG_WINDOW);
+                const nDrag = targetIdx - dragStart;
+                const dragRaw = Array(40).fill(0);
+
+                for (let lag = 1; lag <= 3; lag++) {
+                    if (nDrag <= lag) continue;
+                    const trigCnt = Array(40).fill(0);
+                    const coCnt = Array.from({ length: 40 }, () => Array(40).fill(0));
+
+                    for (let i = dragStart + lag; i < targetIdx; i++) {
+                        const pDraw = draws[i - lag];
+                        const cDraw = draws[i];
+                        for (let aIdx = 0; aIdx < 5; aIdx++) {
+                            const a = pDraw[aIdx];
+                            trigCnt[a]++;
+                            for (let bIdx = 0; bIdx < 5; bIdx++) {
+                                coCnt[a][cDraw[bIdx]]++;
+                            }
+                        }
+                    }
+
+                    const trigDraw = draws[targetIdx - lag];
+                    for (let aIdx = 0; aIdx < 5; aIdx++) {
+                        const a = trigDraw[aIdx];
+                        if (trigCnt[a] >= 3) {
+                            const denom = trigCnt[a] + 3.9;
+                            for (let b = 1; b <= 39; b++) {
+                                dragRaw[b] += ((coCnt[a][b] + 0.5) / denom) / lag;
+                            }
+                        }
+                    }
+                }
+
+                let dMin = Infinity, dMax = -Infinity;
+                for (let b = 1; b <= 39; b++) {
+                    if (dragRaw[b] < dMin) dMin = dragRaw[b];
+                    if (dragRaw[b] > dMax) dMax = dragRaw[b];
+                }
+                const dragNorm = Array(40).fill(0);
+                if (dMax > dMin) {
+                    const span = dMax - dMin;
+                    for (let b = 1; b <= 39; b++) dragNorm[b] = (dragRaw[b] - dMin) / span;
+                }
+
+                // 4. 逐柱評分，取每柱最高分候選
+                const bestPerPillar = [];
+                for (let c = 0; c < 5; c++) {
+                    const s1 = getModeHotCandidates(matrix1, data, 1, c, startIdx, targetIdx, 3);
+                    const s2 = getModeHotCandidates(matrix2, data, 2, c, startIdx, targetIdx, 3);
+                    const unionSet = new Set([...s1, ...s2]);
+
+                    let bestCandidate = null;
+                    unionSet.forEach(num => {
+                        const z = Math.abs(num - posMean[c]) / posStd[c];
+                        if (z > 1.6) return;
+
+                        let score = (s1.has(num) && s2.has(num)) ? 3.0 : 1.0;
+                        score += Math.max(0, 1.5 - z);
+
+                        const gap = (targetIdx - 1) - lastSeenIdx[num];
+                        if ((gap >= 1 && gap <= 5) || (gap >= 10 && gap <= 18)) score += 1.0;
+                        if (lastNums.some(ln => Math.abs(num - ln) <= 1)) score += 0.8;
+                        score += tailFreq[num % 10] * 0.1;
+                        score += W_DRAG * dragNorm[num];
+
+                        if (score >= MIN_SCORE) {
+                            if (!bestCandidate || score > bestCandidate.score || (score === bestCandidate.score && num < bestCandidate.num)) {
+                                bestCandidate = { num, score };
+                            }
+                        }
+                    });
+
+                    if (bestCandidate) bestPerPillar.push(bestCandidate);
+                }
+
+                // 5. 全盤排序去重，硬限制最多 4 碼，不足 3 碼觸發 SKIP
+                bestPerPillar.sort((a, b) => (b.score - a.score) || (a.num - b.num));
+                const picked = [];
+                const seen = new Set();
+                for (const item of bestPerPillar) {
+                    if (!seen.has(item.num)) {
+                        seen.add(item.num);
+                        picked.push(item.num);
+                    }
+                    if (picked.length >= MAX_BALLS) break;
+                }
+
+                predsByIdx[targetIdx] = (picked.length >= MIN_BALLS)
+                    ? assignTo5Pillars(picked)
+                    : [[], [], [], [], []];
+            }
+
+            return predsByIdx;
+        }
+
+        function runSimulation() {
+            if (!globalData.length) return;
+
+            const mode = document.getElementById('strategy-mode').value;
+            const rangeVal = document.getElementById('range-mode').value;
+            const { m2, m3, m4 } = getMultipliers();
+            const checkedCols = Array.from(document.querySelectorAll('.col-toggle:checked')).map(el => parseInt(el.value, 10));
+            const trimHead = document.getElementById('trim-head').checked;
+            const trimTail = document.getElementById('trim-tail').checked;
+
+            document.getElementById('trim-hint').textContent = (mode === 'quant_r3')
+                ? '（註：R3 模式下每柱最多 1 碼，建議不勾選頭尾剔除）'
+                : '（註：經典模式跨柱去重優先序為 [位02 > 位01]、[位04 > 位05]）';
+
+            const predsByIdx = cachedPreds[mode];
+            const total = globalData.length;
+
+            // 前 20 期作為特徵滾動暖身期，確保回測數據無前期窗口不足偏差
+            const baseStartIdx = total > 20 ? 20 : 1;
+            const startIdx = (rangeVal === 'all')
+                ? baseStartIdx
+                : Math.max(baseStartIdx, total - parseInt(rangeVal, 10));
+
+            let grandCost = 0;
+            let grandPrize = 0;
+            let totalEvalPeriods = 0;
+            let playedPeriods = 0;
+            let currLossStreak = 0;
+            let maxLossStreak = 0;
+
+            const rowsHtml = [];
+
+            // 依時間正序計算累計損益與最大連敗，最後反轉渲染讓 NEXT 置頂
+            for (let targetIdx = startIdx; targetIdx <= total; targetIdx++) {
+                const isFuture = (targetIdx === total);
+                const period = isFuture ? "NEXT" : globalData[targetIdx].period;
+                const actual = isFuture ? [] : globalData[targetIdx].nums.map(Number);
+                const rawPeriodCols = predsByIdx[targetIdx] || [[], [], [], [], []];
+
+                if (!isFuture) totalEvalPeriods++;
+
+                const allCols = rawPeriodCols.map(col => {
+                    const sorted = [...col].sort((a, b) => a - b);
+                    if (trimHead && sorted.length > 0) sorted.shift();
+                    if (trimTail && sorted.length > 0) sorted.pop();
+                    return sorted;
+                });
+
+                const activeCols = checkedCols.map(idx => allCols[idx]);
+                const activeColCounts = activeCols.map(c => c.length);
+
+                const p2Comb = getPillarCombinations(activeColCounts, 2);
+                const p3Comb = getPillarCombinations(activeColCounts, 3);
+                const p4Comb = getPillarCombinations(activeColCounts, 4);
+
+                const totalBets = (p2Comb * m2) + (p3Comb * m3) + (p4Comb * m4);
+                const cost = Math.round(totalBets * COST_PER_BET);
+                const isSkip = (totalBets === 0);
+
+                const hitCountsPerCol = [];
+                let totalHitBalls = 0;
+                let hitPillars = 0;
+
+                activeCols.forEach(col => {
+                    const hits = col.filter(n => !isFuture && actual.includes(n));
+                    hitCountsPerCol.push(hits.length);
+                    if (hits.length > 0) {
+                        hitPillars++;
+                        totalHitBalls += hits.length;
+                    }
+                });
+
+                let win2 = 0, win3 = 0, win4 = 0, prize = 0, profit = 0;
+                if (!isFuture && !isSkip) {
+                    win2 = getPillarCombinations(hitCountsPerCol, 2);
+                    win3 = getPillarCombinations(hitCountsPerCol, 3);
+                    win4 = getPillarCombinations(hitCountsPerCol, 4);
+
+                    prize = Math.round((win2 * m2 * PRIZE_2) + (win3 * m3 * PRIZE_3) + (win4 * m4 * PRIZE_4));
+                    profit = prize - cost;
+
+                    grandCost += cost;
+                    grandPrize += prize;
+                    playedPeriods++;
+
+                    if (profit > 0) {
+                        currLossStreak = 0;
+                    } else {
+                        currLossStreak++;
+                        if (currLossStreak > maxLossStreak) maxLossStreak = currLossStreak;
+                    }
+                }
+
+                let colsHtml = '';
+                for (let c = 0; c < 5; c++) {
+                    if (!checkedCols.includes(c)) {
+                        colsHtml += '<td class="col-disabled">未選取</td>';
+                        continue;
+                    }
+                    const colNums = allCols[c];
+                    const hits = colNums.filter(n => !isFuture && actual.includes(n));
+                    let chipsHtml = '';
+                    if (colNums.length > 0) {
+                        chipsHtml = '<div class="pillar-chips">' + colNums.map(n => {
+                            const isHit = !isFuture && actual.includes(n);
+                            return `<span class="chip ${isHit ? 'chip-hit' : ''}">${pad(n)}</span>`;
+                        }).join('') + '</div>';
+                    } else {
+                        chipsHtml = '<span style="color:#94a3b8;">-</span>';
+                    }
+                    colsHtml += `<td class="${(!isFuture && hits.length > 0) ? 'hit-cell' : ''}">${chipsHtml}</td>`;
+                }
+
+                const rowClass = isFuture ? 'predict-row' : (isSkip ? 'skip-row' : '');
+                const ballsHtml = isFuture
+                    ? '待開獎'
+                    : globalData[targetIdx].nums.map(n => `<span class="ball">${pad(n)}</span>`).join('');
+
+                let statsTailHtml = '';
+                if (isSkip) {
+                    statsTailHtml = `
+                        <td colspan="7"><span class="skip-badge">SKIP（觀望不出手，0 注 0 元）</span></td>
+                    `;
+                } else {
+                    const profitClass = profit >= 0 ? 'profit-pos' : 'profit-neg';
+                    const profitText = isFuture ? '---' : `${profit >= 0 ? '+' : ''}${profit.toLocaleString()} 元`;
+                    statsTailHtml = `
+                        <td>${isFuture ? '---' : `${hitPillars}柱 / ${totalHitBalls}顆`}</td>
+                        <td style="font-size:0.9em;">${p2Comb}/${p3Comb}/${p4Comb}</td>
+                        <td>${totalBets.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
+                        <td>${cost.toLocaleString()}</td>
+                        <td style="font-size:0.9em;">${isFuture ? '---' : `${win2}/${win3}/${win4}`}</td>
+                        <td>${isFuture ? '---' : prize.toLocaleString()}</td>
+                        <td class="${profitClass}">${profitText}</td>
+                    `;
+                }
+
+                rowsHtml.push(`<tr class="${rowClass}"><td>${period}</td><td>${ballsHtml}</td>${colsHtml}${statsTailHtml}</tr>`);
+            }
+
+            // 反轉陣列：NEXT 與最新開獎期顯示在最上方
+            document.getElementById('tbody-result').innerHTML = rowsHtml.reverse().join('');
+
+            const netProfit = grandPrize - grandCost;
+            const roi = grandCost > 0 ? ((netProfit / grandCost) * 100).toFixed(2) : '0.00';
+
+            document.getElementById('sum-periods').textContent = `${playedPeriods} / ${totalEvalPeriods} 期`;
+            document.getElementById('sum-cost').textContent = grandCost.toLocaleString() + ' 元';
+            document.getElementById('sum-prize').textContent = grandPrize.toLocaleString() + ' 元';
+
+            const sumProfitEl = document.getElementById('sum-profit');
+            sumProfitEl.textContent = `${netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()} 元`;
+            sumProfitEl.className = `val ${netProfit >= 0 ? 'profit-pos' : 'profit-neg'}`;
+
+            const roiEl = document.getElementById('sum-roi');
+            roiEl.textContent = `${Number(roi) >= 0 ? '+' : ''}${roi}%`;
+            roiEl.className = `val ${Number(roi) >= 0 ? 'profit-pos' : 'profit-neg'}`;
+
+            document.getElementById('sum-streak').textContent = `${maxLossStreak} 期`;
+        }
+
+        init();
+    </script>
+</body>
+</html>
