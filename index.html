@@ -138,7 +138,9 @@
         function renderMainTable(data, matrix, type) {
             const tbody = document.getElementById('tbody' + type);
             tbody.innerHTML = '';
-            data.forEach((item, i) => {
+            const renderStart = Math.max(0, data.length - 60);
+            for (let i = renderStart; i < data.length; i++) {
+                const item = data[i];
                 const row = document.createElement('tr');
                 const balls = item.nums.map(n => `<span class="ball">${pad(n)}</span>`).join(' ');
                 let html = `<td><strong>${item.period}</strong></td><td>${balls}</td>`;
