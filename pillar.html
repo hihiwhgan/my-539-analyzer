@@ -8,8 +8,9 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #f4f4f2; padding: 12px; color: #333; margin: 0; }
         .container { max-width: 1650px; margin: 0 auto; background: white; padding: 16px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         h1 { text-align: center; color: #1e293b; font-size: 1.4em; margin: 8px 0 14px 0; }
-        .nav-bar { text-align: center; margin-bottom: 16px; }
+        .nav-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 16px; }
         .nav-bar a { display: inline-block; padding: 8px 16px; background: #64748b; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: bold; }
+        .nav-bar a.nav-car { background: #b45309; }
 
         /* 獨立立柱成本試算計算機 */
         .calc-panel { background: #0f172a; color: #f8fafc; border-radius: 12px; padding: 15px; margin-bottom: 18px; }
@@ -65,6 +66,13 @@
         .skip-badge { display: inline-block; padding: 2px 8px; background: #e2e8f0; color: #475569; border-radius: 4px; font-size: 0.85em; }
         .hit-cell { background-color: #fef2f2; }
         .col-disabled { background-color: #f1f5f9 !important; color: #94a3b8 !important; text-decoration: line-through; }
+
+        /* 主動版路明細面板 */
+        .banlu-panel { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
+        .banlu-title { font-weight: bold; color: #92400e; font-size: 0.9em; margin-bottom: 6px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+        .banlu-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .banlu-item { background: #fff; border: 1px solid #fde68a; border-radius: 6px; padding: 3px 8px; font-size: 0.79em; color: #451a03; }
+        .banlu-item.banlu-picked { border-color: #ef4444; background: #fef2f2; color: #991b1b; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -72,6 +80,7 @@
         <h1>今彩 539 立柱損益與量化回測系統</h1>
         <div class="nav-bar">
             <a href="index.html">⬅ 返回主分析儀表板</a>
+            <a href="car.html" class="nav-car">🚗 前往 4 碼坐車（專車）預測與歷史勝率</a>
         </div>
 
         <!-- 獨立立柱成本試算計算機 -->
@@ -100,9 +109,10 @@
             <div class="filter-row">
                 <span class="filter-title">抓牌模型：</span>
                 <select id="strategy-mode" class="select-input">
-                    <option value="v4_4x2" selected>V4 雙窗共振立柱（4柱×2碼・推薦主力）</option>
-                    <option value="v4_3x2">V4 雙窗共振精簡（3柱×2碼・中低成本）</option>
-                    <option value="v4_5x1">V4 五柱全區精選（5柱各1碼・低成本）</option>
+                    <option value="v5_4x2" selected>V5 雙窗＋版路融合立柱（4柱×2碼・推薦主力）</option>
+                    <option value="v5_3x2">V5 雙窗＋版路精簡（3柱×2碼・中低成本）</option>
+                    <option value="v5_5x1">V5 雙窗＋版路五柱（5柱各1碼・低成本）</option>
+                    <option value="v4_4x2">V4 純雙窗共振立柱（4柱×2碼・無版路對照）</option>
                     <option value="quant_r3">舊版 R3 量化模型（單柱1碼・歷史對照）</option>
                     <option value="classic_m1m2">舊版 M1+M2 全柱模式（無濾網・歷史對照）</option>
                 </select>
@@ -133,7 +143,7 @@
                     <label class="checkbox-item"><input type="checkbox" id="trim-head"> 剔除每柱最小號</label>
                     <label class="checkbox-item"><input type="checkbox" id="trim-tail"> 剔除每柱最大號</label>
                 </div>
-                <span class="hint-text" id="trim-hint">（V4 模式採 W=20/30 雙窗跨柱共振＋近15期尾數動能＋50期熱度精選）</span>
+                <span class="hint-text" id="trim-hint">（V5 主力：雙窗共振融合連準版路前 8 碼分 4 柱各 2 碼）</span>
             </div>
 
             <div class="filter-row">
@@ -145,6 +155,15 @@
                 </div>
                 <span class="hint-text">（單注 75 元；2/3/4 星單碰獎金 5,300 / 57,000 / 750,000）</span>
             </div>
+        </div>
+
+        <!-- 本期成立版路明細 -->
+        <div class="banlu-panel" id="banlu-panel">
+            <div class="banlu-title">
+                <span>🧭 下一期（NEXT）主動版路分析明細（紅框為已入選本期立柱號碼）</span>
+                <span id="banlu-summary" style="font-weight:normal; color:#78350f;">載入中...</span>
+            </div>
+            <div class="banlu-list" id="banlu-list"></div>
         </div>
 
         <!-- 統計摘要卡片 -->
@@ -185,6 +204,7 @@
         </div>
     </div>
 
+    <script src="predictor.js"></script>
     <script>
         const COST_PER_BET = 75;
         const PRIZE_2 = 5300;
@@ -192,7 +212,8 @@
         const PRIZE_4 = 750000;
 
         let globalData = [];
-        let cachedPreds = { v4_4x2: null, v4_3x2: null, v4_5x1: null, quant_r3: null, classic_m1m2: null };
+        let predBundle = null;
+        let cachedPreds = { v5_4x2: null, v5_3x2: null, v5_5x1: null, v4_4x2: null, quant_r3: null, classic_m1m2: null };
         const pad = (n) => n.toString().padStart(2, '0');
 
         async function init() {
@@ -205,12 +226,14 @@
                 globalData = await res.json();
 
                 // 預先計算並快取各模型結果（避免切換參數時重複掃描千期矩陣）
-                const m1 = calculateMatrix(globalData, 1);
-                const m2 = calculateMatrix(globalData, 2);
-                const v4Models = buildPredictionsV4All(globalData, m1, m2);
-                cachedPreds.v4_4x2 = v4Models.v4_4x2;
-                cachedPreds.v4_3x2 = v4Models.v4_3x2;
-                cachedPreds.v4_5x1 = v4Models.v4_5x1;
+                const m1 = Lotto539Predictor.calculateMatrix(globalData, 1);
+                const m2 = Lotto539Predictor.calculateMatrix(globalData, 2);
+                predBundle = Lotto539Predictor.buildAllV4V5Predictions(globalData, m1, m2);
+
+                cachedPreds.v5_4x2 = predBundle.v5_4x2;
+                cachedPreds.v5_3x2 = predBundle.v5_3x2;
+                cachedPreds.v5_5x1 = predBundle.v5_5x1;
+                cachedPreds.v4_4x2 = predBundle.v4_4x2;
                 cachedPreds.quant_r3 = buildPredictionsQuantR3(globalData, m1, m2);
                 cachedPreds.classic_m1m2 = buildPredictionsClassic(globalData, m1, m2);
 
@@ -560,145 +583,30 @@
             return predsByIdx;
         }
 
-        // 將已排序的分組（各組數值遞增）依組內均值距離配對至 5 個區間柱位
-        function assignGroupsTo5Pillars(groups) {
-            const cols = [[], [], [], [], []];
-            if (!groups.length) return cols;
-            if (groups.length === 5) {
-                for (let i = 0; i < 5; i++) cols[i] = [...groups[i]].sort((a, b) => a - b);
-                return cols;
+        function renderBanluPanel(predsByIdx) {
+            if (!predBundle || !globalData.length) return;
+            const total = globalData.length;
+            const rules = predBundle.getRulesAt(total);
+            const nextCols = predsByIdx[total] || [[], [], [], [], []];
+            const pickedSet = new Set(nextCols.flat());
+
+            document.getElementById('banlu-summary').textContent =
+                `共掃描到 ${rules.length} 條成立中版路（接續 ${globalData[total - 1].period} 推算）`;
+
+            const listEl = document.getElementById('banlu-list');
+            if (!rules.length) {
+                listEl.innerHTML = '<span style="color:#78350f; font-size:0.84em;">本期無連準 3 次以上之定位版路，由雙窗共振進行評分。</span>';
+                return;
             }
 
-            const sortedGroups = groups
-                .map(g => [...g].sort((a, b) => a - b))
-                .sort((a, b) => {
-                    const ma = a.reduce((s, v) => s + v, 0) / a.length;
-                    const mb = b.reduce((s, v) => s + v, 0) / b.length;
-                    return ma - mb;
-                });
-
-            const means = sortedGroups.map(g => g.reduce((s, v) => s + v, 0) / g.length);
-            const centers = [6.5, 13.5, 20.0, 26.5, 33.5];
-            let bestAssign = null;
-            let bestDist = Infinity;
-
-            function choose(start, chosen) {
-                if (chosen.length === sortedGroups.length) {
-                    let dist = 0;
-                    for (let i = 0; i < sortedGroups.length; i++) {
-                        dist += Math.abs(means[i] - centers[chosen[i]]);
-                    }
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestAssign = [...chosen];
-                    }
-                    return;
-                }
-                for (let i = start; i < 5; i++) {
-                    chosen.push(i);
-                    choose(i + 1, chosen);
-                    chosen.pop();
-                }
-            }
-            choose(0, []);
-            for (let i = 0; i < sortedGroups.length; i++) {
-                cols[bestAssign[i]] = sortedGroups[i];
-            }
-            return cols;
-        }
-
-        // 模型 C：V4 雙窗共振立柱模型（W=20/30 M1+M2 跨柱共識 + 近15期尾數動能 + 上期尾數共振 + 近50期熱度）
-        function buildPredictionsV4All(data, matrix1, matrix2) {
-            const total = data.length;
-            const v4_4x2 = new Array(total + 1);
-            const v4_3x2 = new Array(total + 1);
-            const v4_5x1 = new Array(total + 1);
-            const draws = data.map(d => d.nums.map(Number));
-            const windows = [20, 30];
-
-            for (let targetIdx = 0; targetIdx <= total; targetIdx++) {
-                if (targetIdx < 2) {
-                    v4_4x2[targetIdx] = [[], [], [], [], []];
-                    v4_3x2[targetIdx] = [[], [], [], [], []];
-                    v4_5x1[targetIdx] = [[], [], [], [], []];
-                    continue;
-                }
-
-                const scores = new Float64Array(40);
-
-                // 1. W=20 與 W=30 雙滾動視窗：M1/M2 跨位置候選共識累積
-                for (let wIdx = 0; wIdx < windows.length; wIdx++) {
-                    const startIdx = Math.max(1, targetIdx - windows[wIdx]);
-                    const colHitCnt = new Int32Array(40);
-
-                    for (let c = 0; c < 5; c++) {
-                        const s1 = getModeHotCandidates(matrix1, data, 1, c, startIdx, targetIdx, 3);
-                        const s2 = getModeHotCandidates(matrix2, data, 2, c, startIdx, targetIdx, 3);
-                        const union = new Set([...s1, ...s2]);
-
-                        union.forEach(n => { colHitCnt[n]++; });
-                        s1.forEach(n => { scores[n] += 1.0; });
-                        s2.forEach(n => { scores[n] += 1.0; });
-                        s1.forEach(n => { if (s2.has(n)) scores[n] += 0.5; });
-                    }
-
-                    // 單視窗內跨 >=3 柱同時點名給予共振加分
-                    for (let n = 1; n <= 39; n++) {
-                        if (colHitCnt[n] >= 3) scores[n] += 2.0;
-                    }
-                }
-
-                // 2. 近 15 期尾數動能（依尾數含球數正規化：0尾3顆，其餘4顆）
-                const tail15 = new Int32Array(10);
-                const tStart = Math.max(0, targetIdx - 15);
-                for (let i = tStart; i < targetIdx; i++) {
-                    for (let c = 0; c < 5; c++) tail15[draws[i][c] % 10]++;
-                }
-
-                // 3. 上期開獎尾數即時共振
-                const prevTails = new Int32Array(10);
-                const lastDraw = draws[targetIdx - 1];
-                for (let c = 0; c < 5; c++) prevTails[lastDraw[c] % 10]++;
-
-                // 4. 近 50 期單號熱度
-                const hot50 = new Int32Array(40);
-                const hStart = Math.max(0, targetIdx - 50);
-                for (let i = hStart; i < targetIdx; i++) {
-                    for (let c = 0; c < 5; c++) hot50[draws[i][c]]++;
-                }
-
-                const ranked = [];
-                for (let n = 1; n <= 39; n++) {
-                    const tail = n % 10;
-                    const tailCap = (tail === 0) ? 3.0 : 4.0;
-                    scores[n] += 0.2 * (tail15[tail] / tailCap);
-                    scores[n] += 0.2 * prevTails[tail];
-                    scores[n] += 0.08 * hot50[n];
-                    ranked.push({ num: n, score: scores[n] });
-                }
-
-                ranked.sort((a, b) => (b.score - a.score) || (a.num - b.num));
-
-                const top8 = ranked.slice(0, 8).map(x => x.num).sort((a, b) => a - b);
-                v4_4x2[targetIdx] = assignGroupsTo5Pillars([
-                    [top8[0], top8[1]],
-                    [top8[2], top8[3]],
-                    [top8[4], top8[5]],
-                    [top8[6], top8[7]]
-                ]);
-
-                const top6 = ranked.slice(0, 6).map(x => x.num).sort((a, b) => a - b);
-                v4_3x2[targetIdx] = assignGroupsTo5Pillars([
-                    [top6[0], top6[1]],
-                    [top6[2], top6[3]],
-                    [top6[4], top6[5]]
-                ]);
-
-                const top5 = ranked.slice(0, 5).map(x => x.num).sort((a, b) => a - b);
-                v4_5x1[targetIdx] = top5.map(n => [n]);
-            }
-
-            return { v4_4x2, v4_3x2, v4_5x1 };
+            listEl.innerHTML = rules.slice(0, 18).map(r => {
+                const sign = r.delta >= 0 ? `+${r.delta}` : `${r.delta}`;
+                const isPicked = pickedSet.has(r.pred);
+                const text = (r.kind === 'direct2')
+                    ? `[隔2期連${r.streak}] ${r.trigPeriod} 第${r.colPos}支(${pad(r.baseVal)}) ${sign} → 推 ${pad(r.pred)}`
+                    : `[連${r.streak}次] ${r.trigPeriod} 開${pad(r.triggerBall)} → 隔${r.lag}期第${r.colPos}支(${pad(r.baseVal)}) ${sign} → 推 ${pad(r.pred)}`;
+                return `<span class="banlu-item ${isPicked ? 'banlu-picked' : ''}">${text}</span>`;
+            }).join('');
         }
 
         function runSimulation() {
@@ -712,15 +620,17 @@
             const trimTail = document.getElementById('trim-tail').checked;
 
             const modeHints = {
-                v4_4x2: '（V4 主力：取雙窗共振前 8 碼分 4 柱各 2 碼，兼顧高勝率與正期望報酬；勾選剔除頭/尾可縮減為每柱 1 碼）',
-                v4_3x2: '（V4 精簡：取雙窗共振前 6 碼分 3 柱各 2 碼，免除四星高抽水、成本降半以上）',
-                v4_5x1: '（V4 五柱：取雙窗共振前 5 碼各立 1 柱，成本最低、保留三/四星高賠空間）',
+                v5_4x2: '（V5 主力：W=20/30 雙窗共振＋條件/隔期版路融合前 8 碼分 4 柱各 2 碼；勾選剔除頭/尾可縮減為每柱 1 碼）',
+                v5_3x2: '（V5 精簡：雙窗＋版路融合前 6 碼分 3 柱各 2 碼，免除四星高抽水、成本降半以上）',
+                v5_5x1: '（V5 五柱：雙窗＋版路融合前 5 碼各立 1 柱，成本最低、保留三/四星高賠空間）',
+                v4_4x2: '（V4 對照：純雙窗共振前 8 碼，不含版路加權）',
                 quant_r3: '（舊版 R3：單柱最多 1 碼並含 SKIP 風控，建議不勾選頭尾剔除）',
                 classic_m1m2: '（舊版經典：跨柱去重優先序為 [位02 > 位01]、[位04 > 位05]，未濾除低共振碼）'
             };
             document.getElementById('trim-hint').textContent = modeHints[mode] || '';
 
             const predsByIdx = cachedPreds[mode];
+            renderBanluPanel(predsByIdx);
             const total = globalData.length;
 
             // 前 20 期作為特徵滾動暖身期，確保回測數據無前期窗口不足偏差
